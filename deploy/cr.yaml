@@ -1,0 +1,6 @@
+apiVersion: "influxdata.com/v1alpha1"
+kind: "Influxdb"
+metadata:
+  name: "influxdb"
+spec:
+  size: 1

@@ -1,0 +1,3 @@
+apiVersion: influxdata.com/v1alpha1
+kind: Influxdb
+projectName: influxdata-operator

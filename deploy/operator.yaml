@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: influxdata-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: influxdata-operator
+  template:
+    metadata:
+      labels:
+        name: influxdata-operator
+    spec:
+      serviceAccountName: influxdata-operator
+      containers:
+        - name: influxdata-operator
+          image: mbelot/influxdata-operator:v0.1.0
+          ports:
+          - containerPort: 60000
+            name: metrics
+          command:
+          - influxdata-operator
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OPERATOR_NAME
+              value: "influxdata-operator"
