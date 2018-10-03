@@ -57,6 +57,10 @@ Create and deploy an influxdata-operator using the SDK CLI:
 $ operator-sdk new influxdata-operator --api-version=dev9-labs.bitbucket.org/v1alpha1 --kind=Influxdb
 $ cd influxdata-operator
 
+- remove all directories and subdirectories inside influxdata-operator and clone it from our repo which contain all code logic and manifest.
+
+git clone https://bitbucket.org/dev9-labs/influxdata-operator/src/master/
+
 # Build and push the influxdata-operator image to a registry such as docker.io
 $ operator-sdk build docker.io/example/influxdata-operator
 $ docker push docker.io/example/influxdata-operator
@@ -116,17 +120,3 @@ $ kubectl delete -f deploy/crd.yaml
 $ kubectl delete -f deploy/operator.yaml
 $ kubectl delete -f deploy/rbac.yaml
 $ kubectl delete -f deploy/sa.yaml
-
-
-
-
-
-
-
-
-
-
-
-
-
-
