@@ -2,7 +2,7 @@
 
 The Influxdata Operator creates, configures and manages Influxdb OSS running on Kubernetes.
 
-InfluxData delivers a complete Time Series Platform built specifically for metrics, events, and other time-based data â€” a modern time-series 
+InfluxData delivers a complete Time Series Platform built specifically for metrics, events, and other time-based data — a modern time-series 
 platform. Whether the data comes from humans, sensors, or machines, InfluxData empowers developers to build next-generation monitoring, 
 analytics, and IoT applications faster, easier, and to scale delivering real business value quickly.
 
@@ -115,13 +115,6 @@ $ kubectl delete -f deploy/crd.yaml
 $ kubectl delete -f deploy/operator.yaml
 $ kubectl delete -f deploy/rbac.yaml
 $ kubectl delete -f deploy/sa.yaml
-
-
-
-
-
-
-
 
 
 
