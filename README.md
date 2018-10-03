@@ -32,6 +32,7 @@ At a high level an operator using the SDK processes events for watched resources
 the state of the application.
 
 
+
 Prerequisites: 
 dep https://golang.github.io/dep/docs/installation.html
 git https://git-scm.com/downloads
