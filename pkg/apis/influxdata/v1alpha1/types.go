@@ -24,6 +24,8 @@ type Influxdb struct {
 type InfluxdbSpec struct {
 	// Size is the size of the memcached deployment
 	Size int32 `json:"size"`
+	// Image is the image to use to build the container
+	Image string `json:"image"`
 }
 type InfluxdbStatus struct {
 	// Nodes are the names of the memcached pods
