@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
-	v1alpha1 "github.com/dev9-labs/influxdata-operator/pkg/apis/influxdata/v1alpha1"
+	"github.com/influxdata-operator2/pkg/apis/influxdata/v1alpha1"
+	"github.com/influxdata-operator2/pkg/stub/providers"
 
 	"github.com/operator-framework/operator-sdk/pkg/sdk"
+	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,13 +29,49 @@ type Handler struct {
 
 func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 	switch o := event.Object.(type) {
+
+	case *v1.PersistentVolumeClaim:
+		if o.Spec.StorageClassName != nil {
+			if o.Status.Phase == v1.ClaimPending {
+				logrus.Info("PersistenVolumeClaim event received!")
+				logrus.Info("Check if the storageclass already exist!")
+				if strings.Contains(*o.Spec.StorageClassName, "nfs") {
+					logrus.Info("Check if the deployment for Nfs exists!")
+					if !providers.CheckNfsServerExistence(*o.Spec.StorageClassName, o.Namespace) {
+						err := providers.SetUpNfsProvisioner(o)
+						if err != nil {
+							logrus.Errorf("Cloud not create the NFS deployment %s", err.Error())
+							return err
+						}
+					}
+					return nil
+				}
+				if !providers.CheckStorageClassExistence(*o.Spec.StorageClassName) {
+					commonProvider, err := providers.DetermineProvider()
+					if err != nil {
+						logrus.Errorf("Cloud not determine cloud provider %s", err.Error())
+						return err
+					}
+					if err := commonProvider.GenerateMetadata(); err != nil {
+						logrus.Errorf("Cloud not generate metadata %s", err.Error())
+						return err
+					}
+					if err := commonProvider.CreateStorageClass(o); err != nil && !apierrors.IsAlreadyExists(err) {
+						logrus.Errorf("Failed to create a storageclass: %s", err.Error())
+						return fmt.Errorf("failed to create storageclass: %s", err.Error())
+					}
+					return nil
+				}
+			}
+		}
 	case *v1alpha1.Influxdb:
 		influxdb := o
 
-		// Ignore the delete event since the garbage collector will clean up all secondary resources for the CR
-		// All secondary resources must have the CR set as their OwnerReference for this to be the case
-		if event.Deleted {
-			return nil
+		// Create the influxdb service if it doesn't exist
+		svc := makeInfluxDBService(o)
+		err2 := sdk.Create(svc)
+		if err2 != nil && apierrors.IsAlreadyExists(err2) {
+			return fmt.Errorf("creating svc failed: %s", err2)
 		}
 
 		// Create the deployment if it doesn't exist
@@ -40,13 +79,6 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 		err := sdk.Create(dep)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create deployment: %v", err)
-		}
-
-		// Create the influxdb service if it doesn't exist
-		svc := makeInfluxDBService(influxdb)
-		err2 := sdk.Create(svc)
-		if err2 != nil && apierrors.IsAlreadyExists(err2) {
-			return fmt.Errorf("creating svc failed: %s", err2)
 		}
 
 		// Ensure the deployment size is the same as the spec
@@ -79,6 +111,18 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 				return fmt.Errorf("failed to update influxdb status: %v", err)
 			}
 		}
+		// Create ObjectStore Bucket
+		logrus.Info("Object Store creation event received!")
+		logrus.Info("Check of the bucket already exists!")
+		commonProvider, err := providers.DetermineProvider()
+		if err != nil {
+			logrus.Errorf("Cloud not determine cloud provider %s", err.Error())
+			return err
+		}
+		if err := commonProvider.CreateObjectStoreBucket(o); err != nil {
+			logrus.Errorf("Could not create an ObjectStore Bucket %s", err.Error())
+		}
+		return nil
 	}
 	return nil
 }
@@ -160,7 +204,9 @@ func deploymentForInfluxdb(m *v1alpha1.Influxdb) *appsv1.StatefulSet {
 						{
 							Name: "influxdb-data",
 							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
+								PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+									ClaimName: "influxdb-data",
+								},
 							},
 						},
 						{
@@ -178,7 +224,7 @@ func deploymentForInfluxdb(m *v1alpha1.Influxdb) *appsv1.StatefulSet {
 					},
 				},
 			},
-			ServiceName: "influx-svc",
+			ServiceName: "influxdb-svc",
 			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
 				v1.PersistentVolumeClaim{
 					ObjectMeta: metav1.ObjectMeta{
@@ -190,6 +236,7 @@ func deploymentForInfluxdb(m *v1alpha1.Influxdb) *appsv1.StatefulSet {
 						AccessModes: []v1.PersistentVolumeAccessMode{
 							v1.ReadWriteOnce,
 						},
+						VolumeName: "influxdata-pv-data",
 						Resources: v1.ResourceRequirements{
 							Requests: v1.ResourceList{
 								v1.ResourceStorage: resource.MustParse("8Gi"),
@@ -213,13 +260,13 @@ func makeInfluxDBService(m *v1alpha1.Influxdb) *v1.Service {
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   m.Name,
+			Name:   "influxdb-svc",
 			Labels: ls,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
 				{
-					Name:       "influx-svc",
+					Name:       "influx",
 					Port:       8086,
 					TargetPort: intstr.FromInt(8086),
 					Protocol:   v1.ProtocolTCP,
