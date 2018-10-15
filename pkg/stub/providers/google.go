@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/influxdata-operator2/pkg/apis/influxdata/v1alpha1"
+	v1alpha1 "github.com/dev9-labs/influxdata-operator/pkg/apis/influxdata/v1alpha1"
 
 	"github.com/operator-framework/operator-sdk/pkg/sdk"
 	"github.com/sirupsen/logrus"

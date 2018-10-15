@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/influxdata-operator2/pkg/apis/influxdata/v1alpha1"
+	v1alpha1 "github.com/dev9-labs/influxdata-operator/pkg/apis/influxdata/v1alpha1"
 
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-10-01/storage"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
