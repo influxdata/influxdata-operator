@@ -1,4 +1,4 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: influxdata-operator
+  name: influxdata-operator2

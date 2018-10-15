@@ -4,3 +4,4 @@ metadata:
   name: "influxdb"
 spec:
   size: 1
+  name: "googlebucket"
