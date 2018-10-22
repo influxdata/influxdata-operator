@@ -30,48 +30,14 @@ type Handler struct {
 func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 	switch o := event.Object.(type) {
 
-	case *v1.PersistentVolumeClaim:
-		if o.Spec.StorageClassName != nil {
-			if o.Status.Phase == v1.ClaimPending {
-				logrus.Info("PersistenVolumeClaim event received!")
-				logrus.Info("Check if the storageclass already exist!")
-				if strings.Contains(*o.Spec.StorageClassName, "nfs") {
-					logrus.Info("Check if the deployment for Nfs exists!")
-					if !providers.CheckNfsServerExistence(*o.Spec.StorageClassName, o.Namespace) {
-						err := providers.SetUpNfsProvisioner(o)
-						if err != nil {
-							logrus.Errorf("Cloud not create the NFS deployment %s", err.Error())
-							return err
-						}
-					}
-					return nil
-				}
-				if !providers.CheckStorageClassExistence(*o.Spec.StorageClassName) {
-					commonProvider, err := providers.DetermineProvider()
-					if err != nil {
-						logrus.Errorf("Cloud not determine cloud provider %s", err.Error())
-						return err
-					}
-					if err := commonProvider.GenerateMetadata(); err != nil {
-						logrus.Errorf("Cloud not generate metadata %s", err.Error())
-						return err
-					}
-					if err := commonProvider.CreateStorageClass(o); err != nil && !apierrors.IsAlreadyExists(err) {
-						logrus.Errorf("Failed to create a storageclass: %s", err.Error())
-						return fmt.Errorf("failed to create storageclass: %s", err.Error())
-					}
-					return nil
-				}
-			}
-		}
 	case *v1alpha1.Influxdb:
 		influxdb := o
 
 		// Create the influxdb service if it doesn't exist
-		svc := makeInfluxDBService(o)
-		err2 := sdk.Create(svc)
-		if err2 != nil && apierrors.IsAlreadyExists(err2) {
-			return fmt.Errorf("creating svc failed: %s", err2)
+		svc := makeInfluxDBService(influxdb)
+		err = sdk.Create(svc)
+		if err != nil && apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("creating svc failed: %s", err)
 		}
 
 		// Create the deployment if it doesn't exist
@@ -111,18 +77,6 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 				return fmt.Errorf("failed to update influxdb status: %v", err)
 			}
 		}
-		// Create ObjectStore Bucket
-		logrus.Info("Object Store creation event received!")
-		logrus.Info("Check of the bucket already exists!")
-		commonProvider, err := providers.DetermineProvider()
-		if err != nil {
-			logrus.Errorf("Cloud not determine cloud provider %s", err.Error())
-			return err
-		}
-		if err := commonProvider.CreateObjectStoreBucket(o); err != nil {
-			logrus.Errorf("Could not create an ObjectStore Bucket %s", err.Error())
-		}
-		return nil
 	}
 	return nil
 }
@@ -146,6 +100,7 @@ func deploymentForInfluxdb(m *v1alpha1.Influxdb) *appsv1.StatefulSet {
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
+			ServiceName: "influxdb-svc",
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: ls,
@@ -172,61 +127,29 @@ func deploymentForInfluxdb(m *v1alpha1.Influxdb) *appsv1.StatefulSet {
 						},
 						VolumeMounts: []v1.VolumeMount{
 							{
-								Name:      "influxdb-config",
-								SubPath:   "config.toml",
-								MountPath: "/etc/influxdb/influxdb.conf",
-							},
-							{
-								Name:      "influxdb-meta",
-								MountPath: "/var/lib/influxdb/meta",
-							},
-							{
 								Name:      "influxdb-data",
-								MountPath: "/var/lib/influxdb/data",
-							},
-							{
-								Name:      "influxdb-wal",
-								MountPath: "/var/lib/influxdb/wal",
+								MountPath: "/var/lib/influxdb/",
 							},
 						},
 					}},
 					Volumes: []v1.Volume{
 						{
-							Name: "influxdb-config",
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
-										Name: "influxdb",
-									},
-								},
-							},
-						},
-						{
 							Name: "influxdb-data",
 							VolumeSource: v1.VolumeSource{
 								PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
-									ClaimName: "influxdb-data",
+									ClaimName: "influxdb-data-influxdb-0",
 								},
-							},
-						},
-						{
-							Name: "influxdb-meta",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: "influxdb-wal",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
 							},
 						},
 					},
 				},
 			},
-			ServiceName: "influxdb-svc",
 			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
 				v1.PersistentVolumeClaim{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1",
+						Kind:       "PersistentVolumeClaim",
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "influxdb-data",
 						Namespace: m.Namespace,
@@ -236,7 +159,6 @@ func deploymentForInfluxdb(m *v1alpha1.Influxdb) *appsv1.StatefulSet {
 						AccessModes: []v1.PersistentVolumeAccessMode{
 							v1.ReadWriteOnce,
 						},
-						VolumeName: "influxdata-pv-data",
 						Resources: v1.ResourceRequirements{
 							Requests: v1.ResourceList{
 								v1.ResourceStorage: resource.MustParse("8Gi"),
@@ -249,34 +171,6 @@ func deploymentForInfluxdb(m *v1alpha1.Influxdb) *appsv1.StatefulSet {
 	}
 	addOwnerRefToObject(dep, asOwner(m))
 	return dep
-}
-
-func makeInfluxDBService(m *v1alpha1.Influxdb) *v1.Service {
-	ls := labelsForInfluxdb(m.Name)
-
-	svc := &v1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "influxdb-svc",
-			Labels: ls,
-		},
-		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{
-				{
-					Name:       "influx",
-					Port:       8086,
-					TargetPort: intstr.FromInt(8086),
-					Protocol:   v1.ProtocolTCP,
-				},
-			},
-			Selector: ls,
-		},
-	}
-	addOwnerRefToObject(svc, asOwner(m))
-	return svc
 }
 
 // labelsForInfluxdb returns the labels for selecting the resources
@@ -319,4 +213,30 @@ func getPodNames(pods []v1.Pod) []string {
 		podNames = append(podNames, pod.Name)
 	}
 	return podNames
+}
+func makeInfluxDBService(m *v1alpha1.Influxdb) *v1.Service {
+	ls := labelsForInfluxdb(m.Name)
+
+	svc := &v1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "influxdb-svc",
+			Labels: ls,
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{
+				{
+					Name:       "influx",
+					Port:       8086,
+					TargetPort: intstr.FromInt(8086),
+					Protocol:   v1.ProtocolTCP,
+				},
+			},
+		},
+	}
+	addOwnerRefToObject(svc, asOwner(m))
+	return svc
 }
