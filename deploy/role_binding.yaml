@@ -1,0 +1,11 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: influxdata-operator
+subjects:
+- kind: ServiceAccount
+  name: influxdata-operator
+roleRef:
+  kind: Role
+  name: influxdata-operator
+  apiGroup: rbac.authorization.k8s.io

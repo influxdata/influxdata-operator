@@ -1,0 +1,7 @@
+apiVersion: influxdata.com/v1alpha1
+kind: Influxdb
+metadata:
+  name: example-influxdb
+spec:
+  # Add fields here
+  size: 3
