@@ -1,7 +1,120 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: influxdbs.influxdata.com
+spec:
+  group: influxdata.com
+  names:
+    kind: Influxdb
+    listKind: InfluxdbList
+    plural: influxdbs
+    singular: influxdb
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: influxdata-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: influxdata-operator
+  template:
+    metadata:
+      labels:
+        name: influxdata-operator
+    spec:
+      serviceAccountName: influxdata-operator
+      containers:
+        - name: influxdata-operator
+          # Replace this with the built image name
+          image: mbelot/influxdata-operator:v1.0
+          ports:
+          - containerPort: 60000
+            name: metrics
+          command:
+          - influxdata-operator
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OPERATOR_NAME
+              value: "influxdata-operator"
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: influxdata-operator
+subjects:
+- kind: ServiceAccount
+  name: influxdata-operator
+roleRef:
+  kind: Role
+  name: influxdata-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: influxdata-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - configmaps
+  - secrets
+  verbs:
+  - '*'
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  - replicasets
+  - statefulsets
+  verbs:
+  - '*'
+- apiGroups:
+  - influxdata.com
+  resources:
+  - '*'
+  verbs:
+  - '*'
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: influxdata-operator
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: influxdb-svc
+spec:
+  selector:
+    app: influxdb
+  ports:
+  - protocol: TCP
+    port: 8086
+    targetPort: 8086
+  type: ClusterIP
+---
 apiVersion: influxdata.com/v1alpha1
 kind: Influxdb
 metadata:
-  name: example-influxdb
+  name: influxdb
 spec:
   # Add fields here
-  size: 3
+  size: 1
+  image: influxdb:1.6.3-alpine
+  imagePullPolicy: Always
