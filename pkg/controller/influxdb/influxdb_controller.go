@@ -81,7 +81,7 @@ type ReconcileInfluxdb struct {
 // Reconcile reads that state of the cluster for a Influxdb object and makes changes based on the state read
 // and what is in the Influxdb.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Influxdb Deployment for each Influxdb CR
+// a Influxdb StatefulSet for each Influxdb CR
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -104,32 +104,32 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-	// Check if the deployment already exists, if not create a new one
-	found := &appsv1.Deployment{}
+	// Check if the statefulset already exists, if not create a new one
+	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: influxdb.Name, Namespace: influxdb.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		// Define a new deployment
-		dep := r.deploymentForInfluxdb(influxdb)
-		log.Printf("Creating a new Deployment %s/%s\n", dep.Namespace, dep.Name)
+		// Define a new statefulset
+		dep := r.statefulsetForInfluxdb(influxdb)
+		log.Printf("Creating a new StatefulSet %s/%s\n", dep.Namespace, dep.Name)
 		err = r.client.Create(context.TODO(), dep)
 		if err != nil {
-			log.Printf("Failed to create new Deployment: %v\n", err)
+			log.Printf("Failed to create new StatefulSet: %v\n", err)
 			return reconcile.Result{}, err
 		}
-		// Deployment created successfully - return and requeue
+		// StatefulSet created successfully - return and requeue
 		return reconcile.Result{Requeue: true}, nil
 	} else if err != nil {
-		log.Printf("Failed to get Deployment: %v\n", err)
+		log.Printf("Failed to get StatefulSet: %v\n", err)
 		return reconcile.Result{}, err
 	}
 
-	// Ensure the deployment size is the same as the spec
+	// Ensure the statefulset size is the same as the spec
 	size := influxdb.Spec.Size
 	if *found.Spec.Replicas != size {
 		found.Spec.Replicas = &size
 		err = r.client.Update(context.TODO(), found)
 		if err != nil {
-			log.Printf("Failed to update Deployment: %v\n", err)
+			log.Printf("Failed to update StatefulSet: %v\n", err)
 			return reconcile.Result{}, err
 		}
 		// Spec updated - return and requeue
@@ -137,7 +137,7 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 
 	// Update the Influxdb status with the pod names
-	// List the pods for this influxdb's deployment
+	// List the pods for this influxdb's statefulset
 	podList := &corev1.PodTemplateList{}
 	labelSelector := labels.SelectorFromSet(labelsForInfluxdb(influxdb.Name))
 	listOps := &client.ListOptions{Namespace: influxdb.Namespace, LabelSelector: labelSelector}
@@ -161,8 +161,8 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, nil
 }
 
-// deploymentForInfluxdb returns a influxdb Deployment object
-func (r *ReconcileInfluxdb) deploymentForInfluxdb(m *influxdatav1alpha1.Influxdb) *appsv1.StatefulSet {
+// statefulsetForInfluxdb returns a influxdb StatefulSet object
+func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxdb) *appsv1.StatefulSet {
 	ls := labelsForInfluxdb(m.Name)
 	replicas := m.Spec.Size
 	Image := m.Spec.Image
@@ -208,12 +208,27 @@ func (r *ReconcileInfluxdb) deploymentForInfluxdb(m *influxdatav1alpha1.Influxdb
 						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
+								Name:      "influxdb-config",
+								SubPath:   "influxdb.conf",
+								MountPath: "/etc/influxdb/influxdb.conf",
+							},
+							{
 								Name:      "influxdb-data",
 								MountPath: "/var/lib/influxdb/",
 							},
 						},
 					}},
 					Volumes: []corev1.Volume{
+						{
+							Name: "influxdb-config",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: "influxdb-config",
+									},
+								},
+							},
+						},
 						{
 							Name: "influxdb-data",
 							VolumeSource: corev1.VolumeSource{
