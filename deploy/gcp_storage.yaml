@@ -20,5 +20,5 @@ spec:
   volumeMode: Filesystem
   resources:
     requests:
-      storage: 200Gi
+      storage: 8Gi
   storageClassName: Standard-pv
