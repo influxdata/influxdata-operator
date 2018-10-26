@@ -2,7 +2,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   labels:
-  name: resize
+  name: Standard-pv
 parameters:
   type: pd-standard
 provisioner: kubernetes.io/gce-pd
@@ -21,4 +21,4 @@ spec:
   resources:
     requests:
       storage: 200Gi
-  storageClassName: resize
+  storageClassName: Standard-pv
