@@ -24,7 +24,10 @@ type BackupStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Backup is the Schema for the backups API
-// +k8s:openapi-gen=true
+// +genclient
+// +genclient:noStatus
+// +resourceName=influxdbbackups
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type Backup struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -34,7 +37,6 @@ type Backup struct {
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // BackupList contains a list of Backup
 type BackupList struct {
 	metav1.TypeMeta `json:",inline"`
