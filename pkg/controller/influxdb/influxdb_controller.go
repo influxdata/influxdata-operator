@@ -81,7 +81,7 @@ type ReconcileInfluxdb struct {
 // Reconcile reads that state of the cluster for a Influxdb object and makes changes based on the state read
 // and what is in the Influxdb.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Influxdb StatefulSet for each Influxdb CR
+// a Influxdb Deployment for each Influxdb CR
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -110,16 +110,16 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 	if err != nil && errors.IsNotFound(err) {
 		// Define a new statefulset
 		dep := r.statefulsetForInfluxdb(influxdb)
-		log.Printf("Creating a new StatefulSet %s/%s\n", dep.Namespace, dep.Name)
+		log.Printf("Creating a new Deployment %s/%s\n", dep.Namespace, dep.Name)
 		err = r.client.Create(context.TODO(), dep)
 		if err != nil {
-			log.Printf("Failed to create new StatefulSet: %v\n", err)
+			log.Printf("Failed to create new Deployment: %v\n", err)
 			return reconcile.Result{}, err
 		}
-		// StatefulSet created successfully - return and requeue
+		// Deployment created successfully - return and requeue
 		return reconcile.Result{Requeue: true}, nil
 	} else if err != nil {
-		log.Printf("Failed to get StatefulSet: %v\n", err)
+		log.Printf("Failed to get Deployment: %v\n", err)
 		return reconcile.Result{}, err
 	}
 
@@ -129,7 +129,7 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 		found.Spec.Replicas = &size
 		err = r.client.Update(context.TODO(), found)
 		if err != nil {
-			log.Printf("Failed to update StatefulSet: %v\n", err)
+			log.Printf("Failed to update Deployment: %v\n", err)
 			return reconcile.Result{}, err
 		}
 		// Spec updated - return and requeue
@@ -161,7 +161,7 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, nil
 }
 
-// statefulsetForInfluxdb returns a influxdb StatefulSet object
+// statefulsetForInfluxdb returns a influxdb Deployment object
 func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxdb) *appsv1.StatefulSet {
 	ls := labelsForInfluxdb(m.Name)
 	replicas := m.Spec.Size
@@ -191,11 +191,44 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 						Image:           Image,
 						Name:            "influxdb",
 						ImagePullPolicy: "Always",
-						Ports: []corev1.ContainerPort{{
-							Name:          "http",
-							ContainerPort: 8086,
-							Protocol:      corev1.ProtocolTCP,
-						}},
+						Ports: []corev1.ContainerPort{
+							{
+								Name:          "api",
+								HostPort:      8086,
+								ContainerPort: 8086,
+								Protocol:      corev1.ProtocolTCP,
+							},
+							{
+								Name:          "graphite",
+								HostPort:      2003,
+								ContainerPort: 2003,
+								Protocol:      corev1.ProtocolTCP,
+							},
+							{
+								Name:          "collectd",
+								HostPort:      25826,
+								ContainerPort: 25826,
+								Protocol:      corev1.ProtocolTCP,
+							},
+							{
+								Name:          "udp",
+								HostPort:      8089,
+								ContainerPort: 8089,
+								Protocol:      corev1.ProtocolTCP,
+							},
+							{
+								Name:          "opentsdb",
+								HostPort:      4242,
+								ContainerPort: 4242,
+								Protocol:      corev1.ProtocolTCP,
+							},
+							{
+								Name:          "backup-restore",
+								HostPort:      8088,
+								ContainerPort: 8088,
+								Protocol:      corev1.ProtocolTCP,
+							},
+						},
 						Resources: corev1.ResourceRequirements{
 							Limits: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("8"),

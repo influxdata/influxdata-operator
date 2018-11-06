@@ -12,6 +12,34 @@ spec:
   scope: Namespaced
   version: v1alpha1
 ---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: backups.influxdata.com
+spec:
+  group: influxdata.com
+  names:
+    kind: Backup
+    listKind: BackupList
+    plural: backups
+    singular: backup
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: restores.influxdata.com
+spec:
+  group: influxdata.com
+  names:
+    kind: Restore
+    listKind: RestoreList
+    plural: restores
+    singular: restore
+  scope: Namespaced
+  version: v1alpha1
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -30,7 +58,7 @@ spec:
       containers:
         - name: influxdata-operator
           # Replace this with the built image name
-          image: mbelot/influxdata-operator:v1.0
+          image: mbelot/influxdata-operator:v2.0
           ports:
           - containerPort: 60000
             name: metrics
@@ -88,6 +116,8 @@ rules:
   - influxdata.com
   resources:
   - '*'
+  - backups
+  - restores
   verbs:
   - '*'
 ---
@@ -120,6 +150,9 @@ spec:
   - name: opentsdb
     port: 4242
     targetPort: 4242
+  - name: backup-restore
+    port: 8088
+    targetPort: 8088
   type: ClusterIP
 ---
 apiVersion: v1
@@ -131,7 +164,7 @@ metadata:
 data:
   influxdb.conf: |+
     reporting_disabled = false
-    bind_address = 8088
+    bind_address = "127.0.0.1:8088"
     storage_directory = "/var/lib/influxdb"
     [meta]
       dir = "/var/lib/influxdb/meta"
@@ -192,7 +225,7 @@ data:
       bind_socket = "/var/run/influxdb.sock"
     [[graphite]]
       enabled = false
-      bind_address = "2003"
+      bind_address = 2003
       database = "graphite"
       retention_policy = "autogen"
       protocol = "tcp"
@@ -204,7 +237,7 @@ data:
       udp_read_buffer = 0
     [[collectd]]
       enabled = false
-      bind_address = "25826"
+      bind_address = 25826
       database = "collectd"
       retention_policy = "autogen"
       batch_size = 5000
@@ -216,7 +249,7 @@ data:
       auth_file = "/etc/collectd/auth_file"
     [[opentsdb]]
       enabled = false
-      bind_address = "4242"
+      bind_address = 4242
       database = "opentsdb"
       retention_policy = "autogen"
       consistency_level = "one"
@@ -228,7 +261,7 @@ data:
       log_point_errors = true
     [[udp]]
       enabled = false
-      bind_address = "8089"
+      bind_address = 8089
       database = "udp"
       retention_policy = "autogen"
       batch_size = 5000
