@@ -2,17 +2,15 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	influxdatav1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/apis/influxdata/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -72,7 +70,7 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 	log.Printf("Starting Influxdb Backup\n")
 
 	// Fetch the Influxdb Backup instance
-	backup := &v1alpha1.Backup{}
+	backup := &influxdatav1alpha1.Backup{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, backup)
 	if err != nil {
 		if errors.IsNotFound(err) {
