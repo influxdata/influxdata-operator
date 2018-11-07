@@ -93,8 +93,8 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		"influxdb",
 		"backup",
 		"-portable",
-		"-database " + backup.Spec.Backup.Database,
-		"-host " + backup.Spec.Backup.Hostname,
+		"-database " + backup.Spec.Database,
+		"-host " + backup.Spec.Hostname,
 		backupDir,
 	}
 

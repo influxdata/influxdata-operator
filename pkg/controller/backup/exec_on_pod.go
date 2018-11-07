@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-const debug = false
+const debug = true
 
 // GetClientConfig first tries to get a config object which uses the service account kubernetes gives to pods,
 // if it is called from a process running in a kubernetes environment.
