@@ -43,6 +43,8 @@ type InfluxdbList struct {
 	Items           []Influxdb `json:"items"`
 }
 
+
+
 func init() {
 	SchemeBuilder.Register(&Influxdb{}, &InfluxdbList{})
 }
