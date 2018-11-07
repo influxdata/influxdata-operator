@@ -1,122 +1,90 @@
-# Influxdata-Operator
+# Influxdb Operator
 
-The Influxdata Operator creates, configures and manages Influxdb OSS running on Kubernetes.
+A Kubernetes operator to manage Influxdb instances.
 
-InfluxData delivers a complete Time Series Platform built specifically for metrics, events, and other time-based data — a modern time-series 
-platform. Whether the data comes from humans, sensors, or machines, InfluxData empowers developers to build next-generation monitoring, 
-analytics, and IoT applications faster, easier, and to scale delivering real business value quickly.
+## Overview
 
-Overview
-This project is a component of the Operator Framework, an open source toolkit to manage Kubernetes native applications, called Operators, 
-in an effective, automated, and scalable way.
+This Operator is built using the [Operator SDK](https://github.com/operator-framework/operator-sdk), which is part of the [Operator Framework](https://github.com/operator-framework/) and manages one or more Influxdb instances deployed on Kubernetes.
 
-Operators make it easy to manage complex stateful applications on top of Kubernetes. However writing an operator today can be difficult 
-because of challenges such as using low level APIs, writing boilerplate, and a lack of modularity which leads to duplication.
+## Usage
 
-The Operator SDK is a framework designed to make writing operators easier by providing:
+The first step is to deploy the Influxdb Operator into the cluster where it
+will watch for requests to create `Influxdb` resources, much like the native
+Kubernetes Deployment Controller watches for Deployment resource requests.
 
-- High level APIs and abstractions to write the operational logic more intuitively
-- Tools for scaffolding and code generation to bootstrap a new project fast
-- Extensions to cover common operator use cases
+#### Deploy Influxdb Operator
 
-Workflow
-The SDK provides the following workflow to develop a new operator:
+The `deploy` directory contains the manifests needed to properly install the
+Operator.
 
-- Create a new operator project using the SDK Command Line Interface(CLI)
-- Define new resource APIs by adding Custom Resource Definitions(CRD)
-- Specify resources to watch using the SDK API
-- Define the operator reconciling logic in a designated handler and use the SDK API to interact with resources
-- Use the SDK CLI to build and generate the operator deployment manifests
+```
+kubectl apply -f deploy
+```
 
-At a high level an operator using the SDK processes events for watched resources in a user defined handler and takes actions to reconcile 
-the state of the application.
+You can watch the list of pods and wait until the Operator pod is in a Running
+state, it should not take long.
 
+```
+kubectl get pods -wl name=influxdata-operator
+```
 
+You can have a look at the logs for troubleshooting if needed.
 
-Prerequisites: 
-dep https://golang.github.io/dep/docs/installation.html
-git https://git-scm.com/downloads
-go  https://golang.org/dl/
-docker.
-kubectl.
-Access to a kubernetes cluster.
+```
+kubectl logs -l name=influxdata-operator
+```
 
+Once the Influxdb Operator is deployed, Have a look in the `examples` directory for example manifests that create `Influxdb` resources.
 
-Operator-SDK Installation:
-First, checkout and install the operator-sdk CLI:
+#### Create Influxdb Cluster
 
-$ mkdir -p $GOPATH/src/github.com/operator-framework
-$ cd $GOPATH/src/github.com/operator-framework
-$ git clone https://github.com/operator-framework/operator-sdk
-$ cd operator-sdk
-$ make dep
-$ make install
+Once the Operator is deployed and running, we can create an example Influxdb
+cluster. The `example` directory contains several example manifests for creating
+Influxdb clusters using the Operator.
 
-Create and deploy an influxdata-operator using the SDK CLI:
+```
+kubectl apply -f example/influxdb-minimal.yaml
+```
 
-$ operator-sdk new influxdata-operator --api-version=dev9-labs.bitbucket.org/v1alpha1 --kind=Influxdb
-$ cd influxdata-operator
+Watch the list of pods to see that each requested node starts successfully.
 
-- remove all directories and subdirectories inside influxdata-operator and clone it from our repo which contain all code logic and manifest.
+```
+kubectl get pods -wl cluster=influxdb-minimal-example
+```
 
-git clone https://bitbucket.org/dev9-labs/influxdata-operator/src/master/
+#### Destroy Influxdb Cluster
 
-# Build and push the influxdata-operator image to a registry such as docker.io
-$ operator-sdk build docker.io/example/influxdata-operator
-$ docker push docker.io/example/influxdata-operator
+Simply delete the `Influxdb` Custom Resource to remove the cluster.
 
-- this image will be used in operator.yaml.
+```
+kubectl delete -f example/influxdb-minimal.yaml
+```
 
-# Update the operator manifest to use the built image name
-$ sed -i 's|REPLACE_IMAGE|docker.io/example/influxdata-operator|g' deploy/operator.yaml
+#### Persistent Volumes
 
+The Influxdb Operator supports the use of Persistent Volumes for each node in
+the Influxdb cluster. See [influxdb-custom.yaml](example/influxdb-custom.yaml)
+for the syntax to enable.
 
-# Deploy the Influxdata Operator
-$ kubectl create -f deploy/sa.yaml
-$ kubectl create -f deploy/rbac.yaml
-$ kubectl create -f deploy/operator.yaml
-$ kubectl create -f deploy/crd.yaml
+```
+kubectl apply -f example/influxdb-custom.yaml
+```
 
-# Deploy the Custom Resource for Influxdata Installation
-$ kubectl create -f deploy/cr.yaml
+When deleting a Influxdb cluster that uses Persistent Volumes, remember to
+remove the left-over volumes when the cluster is no longer needed, as these will
+not be removed automatically.
 
-# Verify that the deployment and pods are created
+```
+kubectl delete influxdb,pvc -l cluster=influxdb-custom-example
+```
 
-[root@kube-master influxdata-operator]# kubectl get deployment 
-NAME                  DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-influxdata-operator   1         1         1            1           20h
-influxdb              1         1         1            1           19h
+## Development
 
-[root@kube-master influxdata-operator]# kubectl get pods 
-NAME                                   READY   STATUS    RESTARTS   AGE
-influxdata-operator-7d764b76fb-g7s4h   1/1     Running   0          20h
-influxdb-76c6b44bc8-mshsw              1/1     Running   0          20h
+Clone the repository to a location on your workstation, generally this should be in someplace like `$GOPATH/src/github.com/ORG/REPO`.
 
-- get IP address from the below command
-kubectl describe pod influxdb-76c6b44bc8-mshsw
+Navigate to the location where the repository has been cloned and install the dependencies.
 
-[root@kube-master influxdata-operator]# curl -G 'http://10.36.0.1:8086/query' --data-urlencode 'q=SHOW DATABASES'
-{"results":[{"statement_id":0,"series":[{"name":"databases","columns":["name"],"values":[["_internal"]]}]}]}
-
-[root@kube-master influxdata-operator]# curl -i -XPOST http://10.36.0.1:8086/query --data-urlencode "q=CREATE DATABASE mydb"
-HTTP/1.1 200 OK
-Content-Type: application/json
-Request-Id: 52b588c2-c735-11e8-8003-000000000000
-X-Influxdb-Build: OSS
-X-Influxdb-Version: 1.6.3
-X-Request-Id: 52b588c2-c735-11e8-8003-000000000000
-Date: Wed, 03 Oct 2018 17:54:06 GMT
-Transfer-Encoding: chunked
-
-{"results":[{"statement_id":0}]}
-
-[root@kube-master influxdata-operator]# curl -G 'http://10.36.0.1:8086/query' --data-urlencode 'q=SHOW DATABASES'
-{"results":[{"statement_id":0,"series":[{"name":"databases","columns":["name"],"values":[["_internal"],["mydb"]]}]}]}
-[root@kube-master influxdata-operator]# 
-
-# Cleanup
-$ kubectl delete -f deploy/cr.yaml
-$ kubectl delete -f deploy/crd.yaml
-$ kubectl delete -f deploy/operator.yaml
-$ kubectl delete -f deploy/rbac.yaml
-$ kubectl delete -f deploy/sa.yaml
+```
+cd YOUR_REPO_PATH
+dep ensure
+```
