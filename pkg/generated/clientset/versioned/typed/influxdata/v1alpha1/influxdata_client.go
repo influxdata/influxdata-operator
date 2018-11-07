@@ -28,7 +28,6 @@ import (
 type InfluxdataV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	BackupsGetter
-	RestoresGetter
 }
 
 // InfluxdataV1alpha1Client is used to interact with features provided by the influxdata.com group.
@@ -38,10 +37,6 @@ type InfluxdataV1alpha1Client struct {
 
 func (c *InfluxdataV1alpha1Client) Backups(namespace string) BackupInterface {
 	return newBackups(c, namespace)
-}
-
-func (c *InfluxdataV1alpha1Client) Restores(namespace string) RestoreInterface {
-	return newRestores(c, namespace)
 }
 
 // NewForConfig creates a new InfluxdataV1alpha1Client for the given config.

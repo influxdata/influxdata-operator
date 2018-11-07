@@ -32,10 +32,6 @@ func (c *FakeInfluxdataV1alpha1) Backups(namespace string) v1alpha1.BackupInterf
 	return &FakeBackups{c, namespace}
 }
 
-func (c *FakeInfluxdataV1alpha1) Restores(namespace string) v1alpha1.RestoreInterface {
-	return &FakeRestores{c, namespace}
-}
-
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeInfluxdataV1alpha1) RESTClient() rest.Interface {
