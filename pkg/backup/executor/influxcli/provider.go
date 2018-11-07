@@ -37,11 +37,10 @@ const (
 // Executor creates backups using mysqldump.
 type Executor struct {
 	executor *v1alpha1.InfluxdbBackupExecutor
-	execCreds map[string]string
 }
 
 // NewExecutor creates a provider capable of creating and restoring backups
-func NewExecutor(executor *v1alpha1.InfluxdbBackupExecutor, execCreds map[string]string) (*Executor, error) {
+func NewExecutor(executor *v1alpha1.InfluxdbBackupExecutor) (*Executor, error) {
 	if len(executor.Database) == 0 {
 		return nil, errors.New("No database specified")
 	}
@@ -50,7 +49,7 @@ func NewExecutor(executor *v1alpha1.InfluxdbBackupExecutor, execCreds map[string
 		return nil, errors.New("No database specified")
 	}
 
-	return &Executor{executor: executor, execCreds: execCreds}, nil
+	return &Executor{executor: executor}, nil
 }
 
 // Backup performs a full cluster backup using the mysqldump tool.

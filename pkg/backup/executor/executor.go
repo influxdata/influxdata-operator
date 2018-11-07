@@ -14,22 +14,22 @@
 
 package executor
 
-import (
-	"io"
-
-	"github.com/dev9/prod/influxdata-operator/pkg/apis/influxdata/v1alpha1"
-	"github.com/dev9/prod/influxdata-operator/pkg/backup/executor/influxcli"
-)
-
-// Interface will execute backup operations via a tool
-type Interface interface {
-	// Backup runs a backup operation using the given credentials, returning the content.
-	Backup(backupDir string, clusterName string) (io.ReadCloser, string, error)
-	// Restore restores the given content to the node
-	Restore(content io.ReadCloser) error
-}
-
-// New builds a new backup executor.
-func New(executor v1alpha1.BackupExecutor, execCreds map[string]string) (Interface, error) {
-	return influxcli.NewExecutor(executor.Config, execCreds)
-}
+//import (
+//	"io"
+//
+//	"github.com/dev9/prod/influxdata-operator/pkg/apis/influxdata/v1alpha1"
+//	"github.com/dev9/prod/influxdata-operator/pkg/backup/executor/influxcli"
+//)
+//
+//// Interface will execute backup operations via a tool
+//type Interface interface {
+//	// Backup runs a backup operation using the given credentials, returning the content.
+//	Backup(backupDir string, clusterName string) (io.ReadCloser, string, error)
+//	// Restore restores the given content to the node
+//	Restore(content io.ReadCloser) error
+//}
+//
+//// New builds a new backup executor.
+//func New(executor v1alpha1.BackupExecutor) (Interface, error) {
+//	return influxcli.NewExecutor(executor.Config)
+//}

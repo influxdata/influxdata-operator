@@ -19,23 +19,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
+const (
+	backupDir  = "/var/lib/influxdb/backup"
+)
 
-// Add creates a new Backup Controller and adds it to the Manager. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
 }
 
-// newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileBackup{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+type ReconcileInfluxdbBackup struct {
+	// TODO: Clarify the split client
+	// This client, initialized using mgr.Client() above, is a split client
+	// that reads objects from the cache and writes to the apiserver
+	client client.Client
+	scheme *runtime.Scheme
 }
 
-// add adds a new Controller to mgr with r as the reconcile.Reconciler
+func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+	return &ReconcileInfluxdbBackup{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+}
+
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New("backup-controller", mgr, controller.Options{Reconciler: r})
@@ -45,11 +48,12 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to primary resource Backup
 	err = c.Watch(&source.Kind{Type: &influxdatav1alpha1.Backup{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to primary resource Backup
+	err = c.Watch(&source.Kind{Type: &influxdatav1alpha1.Backup{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner Backup
 	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
@@ -62,31 +66,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-var _ reconcile.Reconciler = &ReconcileBackup{}
-
-// ReconcileBackup reconciles a Backup object
-type ReconcileBackup struct {
-	// TODO: Clarify the split client
-	// This client, initialized using mgr.Client() above, is a split client
-	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
-}
-
-// Reconcile reads that state of the cluster for a Backup object and makes changes based on the state read
-// and what is in the Backup.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
-// Note:
-// The Controller will requeue the Request to be processed again if the returned error is non-nil or
-// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
+var _ reconcile.Reconciler = &ReconcileInfluxdbBackup{}
 
 // This gets called when a Backup resource is created... I think.
 func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	log.Printf("Starting Influxdb Backup\n")
 
 	// Fetch the Influxdb Backup instance
-	backup := &influxdatav1alpha1.Backup{}
+	backup := &v1alpha1.Backup{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, backup)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -100,6 +87,7 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		log.Printf("Failed to get Influxdb Backup: %v", err)
 		return reconcile.Result{}, err
 	}
+
 
 	cmdOpts := []string{
 		"influxdb",
@@ -115,7 +103,7 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 	podName := "influxdb-0"
 	containerName := "influxdb"
 
-	output, stderr, err := ExecToPodThroughAPI(cmd, containerName, podName, request.Namespace, nil)
+	output, stderr, err := ExecToPodThroughAPI(cmd, containerName, podName,	request.Namespace, nil)
 
 	if len(stderr) != 0 {
 		log.Println("STDERR:", stderr)
