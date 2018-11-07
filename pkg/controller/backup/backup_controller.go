@@ -16,279 +16,115 @@ package backup
 
 import (
 	"context"
-	"sync"
-	"time"
-
-	"github.com/golang/glog"
-	"github.com/pkg/errors"
-
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/apimachinery/pkg/util/wait"
-	corev1informers "k8s.io/client-go/informers/core/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	corev1listers "k8s.io/client-go/listers/core/v1"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
-
-	backuputil "github.com/dev9/prod/influxdata-operator/pkg/api/backup"
+	"fmt"
 	"github.com/dev9/prod/influxdata-operator/pkg/apis/influxdata/v1alpha1"
-	controllerutils "github.com/dev9/prod/influxdata-operator/pkg/controller/utils"
-	clientset "github.com/dev9/prod/influxdata-operator/pkg/generated/clientset/versioned/typed/influxdata/v1alpha1"
-	informersv1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/generated/informers/externalversions/influxdata/v1alpha1"
-	listersv1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/generated/listers/influxdata/v1alpha1"
-	kubeutil "github.com/dev9/prod/influxdata-operator/pkg/util/kube"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"log"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+	"strings"
 )
 
-const controllerAgentName = "operator-backup-controller"
+const (
+	backupDir  = "/var/lib/influxdb/backup"
+)
 
-// OperatorController handles validation, labeling, and scheduling of
-// Backups to be executed on a specific (primary) mysql-agent. It is run
-// in the operator.
-type OperatorController struct {
-	client      clientset.BackupsGetter
-	syncHandler func(key string) error
-
-	// backupLister is able to list/get Backups from a shared informer's
-	// store.
-	backupLister listersv1alpha1.BackupLister
-	// backupListerSynced returns true if the Backup shared informer has
-	// synced at least once.
-	backupListerSynced cache.InformerSynced
-
-	// podLister is able to list/get Pods from a shared informer's store.
-	podLister corev1listers.PodLister
-	// podListerSynced returns true if the Pod shared informer has synced at
-	// least once.
-	podListerSynced cache.InformerSynced
-
-	queue workqueue.RateLimitingInterface
-	// recorder is an event recorder for recording Event resources to the
-	// Kubernetes API.
-	recorder record.EventRecorder
-
-	// conditionUpdater updates the conditions of Backups.
-	conditionUpdater ConditionUpdater
+func Add(mgr manager.Manager) error {
+	return add(mgr, newReconciler(mgr))
 }
 
-// NewOperatorController constructs a new OperatorController.
-func NewOperatorController(
-	kubeClient kubernetes.Interface,
-	client clientset.BackupsGetter,
-	backupInformer informersv1alpha1.BackupInformer,
-	podInformer corev1informers.PodInformer,
-) *OperatorController {
-	// Create event broadcaster.
-	glog.V(4).Info("Creating event broadcaster")
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(glog.Infof)
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
-
-	c := &OperatorController{
-		client:              client,
-		backupLister:        backupInformer.Lister(),
-		backupListerSynced:  backupInformer.Informer().HasSynced,
-		podLister:           podInformer.Lister(),
-		podListerSynced:     podInformer.Informer().HasSynced,
-		queue:               workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "backup"),
-		recorder:            recorder,
-		conditionUpdater:    &conditionUpdater{client: client},
-	}
-
-	c.syncHandler = c.processBackup
-
-	backupInformer.Informer().AddEventHandler(
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				backup := obj.(*v1alpha1.Backup)
-
-				_, cond := backuputil.GetBackupCondition(&backup.Status, v1alpha1.BackupScheduled)
-				if cond != nil && cond.Status == corev1.ConditionTrue {
-					glog.V(4).Infof("Backup %q is already scheduled on Cluster member %q",
-						kubeutil.NamespaceAndName(backup), backup.Spec.ScheduledMember)
-					return
-				}
-
-				key, err := cache.MetaNamespaceKeyFunc(backup)
-				if err != nil {
-					glog.Errorf("Error creating queue key, item not added to queue: %v", err)
-					return
-				}
-				c.queue.Add(key)
-			},
-			UpdateFunc: func(oldObj, newObj interface{}) {
-				new := newObj.(*v1alpha1.Backup)
-
-				_, cond := backuputil.GetBackupCondition(&new.Status, v1alpha1.BackupComplete)
-				if cond != nil && cond.Status == corev1.ConditionTrue {
-					glog.V(4).Infof("Backup %q is Complete, skipping.", kubeutil.NamespaceAndName(new))
-					return
-				}
-
-				_, cond = backuputil.GetBackupCondition(&new.Status, v1alpha1.BackupScheduled)
-				if cond != nil && cond.Status == corev1.ConditionTrue {
-					glog.V(4).Infof("Backup %q is already scheduled on Cluster member %q",
-						kubeutil.NamespaceAndName(new), new.Spec.ScheduledMember)
-					return
-				}
-
-				key, err := cache.MetaNamespaceKeyFunc(new)
-				if err != nil {
-					glog.Errorf("Error creating queue key, item not added to queue: %v", err)
-					return
-				}
-				c.queue.Add(key)
-				glog.V(4).Infof("Backup %q queued", kubeutil.NamespaceAndName(new))
-			},
-		},
-	)
-
-	return c
+type ReconcileInfluxdbBackup struct {
+	// TODO: Clarify the split client
+	// This client, initialized using mgr.Client() above, is a split client
+	// that reads objects from the cache and writes to the apiserver
+	client client.Client
+	scheme *runtime.Scheme
 }
 
-// Run is a blocking function that runs the specified number of worker
-// goroutines to process items in the work queue. It will return when it
-// receives on the stopCh channel.
-func (controller *OperatorController) Run(ctx context.Context, numWorkers int) error {
-	var wg sync.WaitGroup
-
-	defer func() {
-		glog.Info("Waiting for workers to finish their work")
-
-		controller.queue.ShutDown()
-
-		// We have to wait here in the deferred function instead of at the
-		// bottom of the function body because we have to shut down the queue
-		// in order for the workers to shut down gracefully, and we want to shut
-		// down the queue via defer and not at the end of the body.
-		wg.Wait()
-
-		glog.Info("All workers have finished")
-
-	}()
-
-	glog.Info("Starting OperatorController")
-	defer glog.Info("Shutting down OperatorController")
-
-	glog.Info("Waiting for caches to sync")
-	if !controllerutils.WaitForCacheSync(controllerAgentName, ctx.Done(),
-		controller.backupListerSynced,
-		controller.podListerSynced) {
-		return errors.New("timed out waiting for caches to sync")
-	}
-	glog.Info("Caches are synced")
-
-	wg.Add(numWorkers)
-	for i := 0; i < numWorkers; i++ {
-		go func() {
-			wait.Until(controller.runWorker, time.Second, ctx.Done())
-			wg.Done()
-		}()
-	}
-
-	<-ctx.Done()
-
-	return nil
+func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+	return &ReconcileInfluxdbBackup{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
-func (controller *OperatorController) runWorker() {
-	// Continually take items off the queue (waits if it's empty) until we get a
-	// shutdown signal from the queue.
-	for controller.processNextWorkItem() {
-	}
-}
-
-func (controller *OperatorController) processNextWorkItem() bool {
-	key, quit := controller.queue.Get()
-	if quit {
-		return false
-	}
-	// Always call done on this item, since if it fails we'll add it back with
-	// rate-limiting below.
-	defer controller.queue.Done(key)
-
-	err := controller.syncHandler(key.(string))
-	if err == nil {
-		// If you had no error, tell the queue to stop tracking history for your
-		// key. This will reset things like failure counts for per-item rate
-		// limiting.
-		controller.queue.Forget(key)
-		return true
-	}
-
-	glog.Errorf("Error in syncHandler, re-adding %q to queue: %+v", key, err)
-	// We had an error processing the item so add it back into the queue for
-	// re-processing with rate-limiting.
-	controller.queue.AddRateLimited(key)
-
-	return true
-}
-
-func (controller *OperatorController) processBackup(key string) error {
-	ns, name, err := cache.SplitMetaNamespaceKey(key)
+func add(mgr manager.Manager, r reconcile.Reconciler) error {
+	// Create a new controller
+	c, err := controller.New("backup-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
-		return errors.Wrap(err, "error splitting queue key")
+		return err
 	}
 
-	// Get resource from store.
-	backup, err := controller.backupLister.Backups(ns).Get(name)
+	// Watch for changes to primary resource Backup
+	err = c.Watch(&source.Kind{Type: &v1alpha1.Backup{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
-		return errors.Wrap(err, "error getting Backup")
+		return err
 	}
 
-	// Don't modify items in the cache.
-	backup = backup.DeepCopy()
-	// Set defaults (incl. operator version label).
-	backup = backup.EnsureDefaults()
-
-	validationErr := backup.Validate()
-	if validationErr == nil {
-		validationErrs := field.ErrorList{}
-
-		if len(validationErrs) > 0 {
-			validationErr = validationErrs.ToAggregate()
-		}
-	}
-
-	if validationErr != nil {
-		controller.recorder.Eventf(backup, corev1.EventTypeWarning, "FailedValidation", validationErr.Error())
-		// NOTE: We only return an error here if we fail to set the condition
-		// (rather than on validation failure) as we don't want to retry.
-		return controller.conditionUpdater.Update(backup, &v1alpha1.BackupCondition{
-			Type:    v1alpha1.BackupFailed,
-			Status:  corev1.ConditionFalse,
-			Reason:  "FailedValidation",
-			Message: validationErr.Error(),
-		})
-	}
-
-	// If possible schedule backup on a secondary member otherwise a primary.
-	backup, err = controller.scheduleBackup(backup)
-	if err != nil {
-		return errors.Wrap(err, "failed to schedule")
-	}
-
-	// Update resource.
-	backup, err = controller.client.Backups(ns).Update(backup)
-	if err != nil {
-		return errors.Wrap(err, "failed to update")
-	}
-
-	controller.recorder.Eventf(backup, corev1.EventTypeNormal, "SuccessScheduled", "Scheduled on Pod %q", backup.Spec.ScheduledMember)
-
-	return nil
-}
-
-// scheduleBackup schedules a Backup on a specific member of a Cluster.
-func (controller *OperatorController) scheduleBackup(backup *v1alpha1.Backup) (*v1alpha1.Backup, error) {
-	backuputil.UpdateBackupCondition(&backup.Status, &v1alpha1.BackupCondition{
-		Type:   v1alpha1.BackupScheduled,
-		Status: corev1.ConditionTrue,
+	// Watch for changes to secondary resource Pods and requeue the owner Backup
+	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &v1alpha1.Backup{},
 	})
-	backup.Spec.ScheduledMember = "influxdb-0"
-	return backup, nil
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var _ reconcile.Reconciler = &ReconcileInfluxdbBackup{}
+
+// This gets called when a Backup resource is created... I think.
+func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Printf("Starting Influxdb Backup\n")
+
+	// Fetch the Influxdb Backup instance
+	backup := &v1alpha1.Backup{}
+	err := r.client.Get(context.TODO(), request.NamespacedName, backup)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			log.Printf("Influxdb Backup %s/%s not found. Ignoring since object must be deleted\n", request.Namespace, request.Name)
+			return reconcile.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		log.Printf("Failed to get Influxdb Backup: %v", err)
+		return reconcile.Result{}, err
+	}
+
+
+	cmdOpts := []string{
+		"influxdb",
+		"backup",
+		"-portable",
+		"-database " + backup.Spec.Backup.Database,
+		"-host " + backup.Spec.Backup.Hostname,
+		backupDir,
+	}
+
+	cmd := strings.Join(cmdOpts, " ")
+
+	podName := "influxdb-0"
+	containerName := "influxdb"
+
+	output, stderr, err := ExecToPodThroughAPI(cmd, containerName, podName,	request.Namespace, nil)
+
+	if len(stderr) != 0 {
+		log.Println("STDERR:", stderr)
+	}
+
+	if err != nil {
+		log.Printf("Error occured while `exec`ing to the Pod %q, namespace %q, command %q. Error: %+v\n", podName, request.Namespace, cmd, err)
+		return reconcile.Result{}, err
+	} else {
+		log.Println("Backup Output:")
+		fmt.Println(output)
+		return reconcile.Result{}, nil
+	}
 }
