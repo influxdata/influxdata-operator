@@ -1,0 +1,8 @@
+apiVersion: influxdata.com/v1alpha1
+kind: Backup
+metadata:
+  name: example-backup
+spec:
+  # Add fields here
+  dataBaseName: "_internal"
+  outPutDir: "/var/lib/influxdb/backup"
