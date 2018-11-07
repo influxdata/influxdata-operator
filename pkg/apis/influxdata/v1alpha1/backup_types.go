@@ -7,7 +7,6 @@ import (
 // BackupSpec defines the specification for a backup.
 type BackupSpec struct {
 	Database string `json:"database"`
-	Hostname string `json:"hostname"`
 }
 
 // BackupStatus defines the observed state of Backup

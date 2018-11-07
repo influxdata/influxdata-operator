@@ -85,13 +85,11 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-
 	cmdOpts := []string{
-		"influxdb",
+		"influxd",
 		"backup",
 		"-portable",
 		"-database " + backup.Spec.Database,
-		"-host " + backup.Spec.Hostname,
 		backupDir,
 	}
 
