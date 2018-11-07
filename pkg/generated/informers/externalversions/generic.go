@@ -55,8 +55,6 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=influxdata.com, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("backups"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Influxdata().V1alpha1().Backups().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("restores"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Influxdata().V1alpha1().Restores().Informer()}, nil
 
 	}
 
