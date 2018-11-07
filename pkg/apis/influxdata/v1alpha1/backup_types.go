@@ -4,14 +4,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // BackupSpec defines the specification for a backup.
 type BackupSpec struct {
 	Database string `json:"database"`
 	Hostname string `json:"hostname"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // BackupStatus defines the observed state of Backup
 type BackupStatus struct {
 	Location string `json:"location"`
