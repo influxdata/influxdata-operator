@@ -3,16 +3,15 @@ package restore
 import (
 	"context"
 	"log"
+	"strings"
 
-	influxdatav1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/apis/influxdata/v1alpha1"
+	influxdatav1alpha1 "github.com/influxdata-operator/pkg/apis/influxdata/v1alpha1"
+	"github.com/influxdata-operator/pkg/controller/backup"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -66,7 +65,6 @@ var _ reconcile.Reconciler = &ReconcileRestore{}
 
 // ReconcileRestore reconciles a Restore object
 type ReconcileRestore struct {
-	// TODO: Clarify the split client
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
@@ -97,54 +95,45 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := newPodForCR(instance)
+	log.Printf("Restore DB: %s, To DB: %s_restore, Backup key: %s", instance.Spec.Database, instance.Spec.Database, instance.Spec.Location)
 
-	// Set Restore instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	return reconcile.Result{}, nil
+	output, err := r.execInPod(request.Namespace, []string{
+		"influxd",
+		"restore",
+		"-portable",
+		"-db " + instance.Spec.Database,
+		"-newdb " + instance.Spec.Database + "_restore",
+		instance.Spec.Location,
+	})
+	if err != nil {
+		log.Printf("Error occured while restoring backup: %v", err)
 		return reconcile.Result{}, err
+	} else {
+		log.Printf("Restore Output: %v", output)
 	}
 
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		log.Printf("Creating a new Pod %s/%s\n", pod.Namespace, pod.Name)
-		err = r.client.Create(context.TODO(), pod)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-
-		// Pod created successfully - don't requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// Pod already exists - don't requeue
-	log.Printf("Skip reconcile: Pod %s/%s already exists", found.Namespace, found.Name)
 	return reconcile.Result{}, nil
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *influxdatav1alpha1.Restore) *corev1.Pod {
-	labels := map[string]string{
-		"app": cr.Name,
+func (r *ReconcileRestore) execInPod(ns string, cmdOpts []string) (string, error) {
+	cmd := strings.Join(cmdOpts, " ")
+
+	// TODO: Parameterize?
+	podName := "influxdb-0"
+	containerName := "influxdb"
+
+	output, stderr, err := backup.ExecToPodThroughAPI(cmd, containerName, podName,	ns, nil)
+
+	if len(stderr) != 0 {
+		log.Println("STDERR:", stderr)
 	}
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
-				},
-			},
-		},
+
+	if err != nil {
+		log.Printf("Error occured while `exec`ing to the Pod %q, namespace %q, command %q. Error: %+v\n", podName, ns, cmd, err)
+		return "", err
+	} else {
+		return output, nil
 	}
 }
+

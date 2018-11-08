@@ -3,5 +3,5 @@ kind: Restore
 metadata:
   name: example-restore
 spec:
-  # Add fields here
-  size: 3
+  database: test
+  location: /var/lib/influxdb/backup/20181108202752

@@ -3,6 +3,5 @@ kind: Backup
 metadata:
   name: example-backup
 spec:
-  # Add fields here
-  dataBaseName: "_internal"
-  outPutDir: "/var/lib/influxdb/backup"
+  database: "test"
+  hostname: "foo"

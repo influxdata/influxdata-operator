@@ -52,3 +52,7 @@ required = [
   [[prune.project]]
     name = "k8s.io/code-generator"
     non-go = false
+
+[[override]]
+  branch = "master"
+  name = "github.com/docker/spdystream"
