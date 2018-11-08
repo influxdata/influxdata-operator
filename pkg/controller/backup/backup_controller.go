@@ -2,8 +2,8 @@ package backup
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"time"
 
 	influxdatav1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/apis/influxdata/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -85,31 +85,58 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-	cmdOpts := []string{
+	backupTime := time.Now().UTC().Format("20060102150405")
+
+	output, err := r.execInPod(request.Namespace, []string{
 		"influxd",
 		"backup",
 		"-portable",
 		"-database " + backup.Spec.Database,
-		backupDir,
+		backupDir + "/" + backupTime,
+	})
+	if err != nil {
+		log.Printf("Error occured while running backup command: %v", err)
+		return reconcile.Result{}, err
+	} else {
+		log.Printf("Backup Output: %v", output)
 	}
 
+	// TODO: Paramaterize s3 bucket and folder base
+	output, err = r.execInPod(request.Namespace, []string{
+		"aws",
+		"s3",
+		"cp",
+		backupDir + "/" + backupTime,
+		"s3://influxdb-backup-restore/backup/",
+		"--recursive",
+	})
+	if err != nil {
+		log.Printf("Error occured while pushing backup to S3: %v", err)
+		return reconcile.Result{}, err
+	} else {
+		log.Printf("S3 Push Output: %v", output)
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileInfluxdbBackup) execInPod(ns string, cmdOpts []string) (string, error) {
 	cmd := strings.Join(cmdOpts, " ")
 
+	// TODO: 
 	podName := "influxdb-0"
 	containerName := "influxdb"
 
-	output, stderr, err := ExecToPodThroughAPI(cmd, containerName, podName,	request.Namespace, nil)
+	output, stderr, err := ExecToPodThroughAPI(cmd, containerName, podName,	ns, nil)
 
 	if len(stderr) != 0 {
 		log.Println("STDERR:", stderr)
 	}
 
 	if err != nil {
-		log.Printf("Error occured while `exec`ing to the Pod %q, namespace %q, command %q. Error: %+v\n", podName, request.Namespace, cmd, err)
-		return reconcile.Result{}, err
+		log.Printf("Error occured while `exec`ing to the Pod %q, namespace %q, command %q. Error: %+v\n", podName, ns, cmd, err)
+		return "", err
 	} else {
-		log.Println("Backup Output:")
-		fmt.Println(output)
-		return reconcile.Result{}, nil
+		return output, nil
 	}
 }
