@@ -19,8 +19,8 @@ limitations under the License.
 package influxdata
 
 import (
-	v1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/generated/informers/externalversions/influxdata/v1alpha1"
-	internalinterfaces "github.com/dev9/prod/influxdata-operator/pkg/generated/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/influxdata-operator/pkg/generated/informers/externalversions/influxdata/v1alpha1"
+	internalinterfaces "github.com/influxdata-operator/pkg/generated/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.
