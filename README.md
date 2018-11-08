@@ -78,3 +78,33 @@ Simply delete the `InfluxDB` Custom Resource to remove the cluster.
 ```
 kubectl delete -f deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml
 ```
+
+
+#### Create "on-demand" Backups
+
+First you need to change the database name field in the yaml file to contain the database name that you wants to backup .
+Ex : the yaml file below will backed up the testdb database .
+
+```
+apiVersion: influxdata.com/v1alpha1
+kind: Backup
+metadata:
+  name: influxdb-backup
+spec:
+  # Add fields here
+  database: testdb
+```
+
+
+```
+kubectl create -f deploy/crds/influxdata_v1alpha1_backup_cr.yaml
+```
+
+You can have a look at the logs for troubleshooting if needed.
+
+
+```
+kubectl get pods -wl name=influxdata-operator
+```
+
+
