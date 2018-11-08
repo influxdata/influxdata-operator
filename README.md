@@ -1,3 +1,14 @@
+## Development
+
+Clone the repository to a location on your workstation, generally this should be in someplace like `$GOPATH/src/github.com/`.
+
+Navigate to the location where the repository has been cloned and install the dependencies.
+
+```
+cd YOUR_REPO_PATH
+dep ensure
+```
+
 # Influxdb Operator
 
 A Kubernetes operator to manage Influxdb instances.
@@ -64,15 +75,4 @@ Simply delete the `Influxdb` Custom Resource to remove the cluster.
 
 ```
 kubectl delete -f deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml
-```
-
-## Development
-
-Clone the repository to a location on your workstation, generally this should be in someplace like `$GOPATH/src/github.com/ORG/REPO`.
-
-Navigate to the location where the repository has been cloned and install the dependencies.
-
-```
-cd YOUR_REPO_PATH
-dep ensure
 ```
