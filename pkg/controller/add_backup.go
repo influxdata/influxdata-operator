@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/dev9/prod/influxdata-operator/pkg/controller/backup"
+	"github.com/influxdata-operator/pkg/controller/backup"
 )
 
 func init() {

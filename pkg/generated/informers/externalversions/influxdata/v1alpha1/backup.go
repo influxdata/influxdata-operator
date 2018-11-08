@@ -21,10 +21,10 @@ package v1alpha1
 import (
 	time "time"
 
-	influxdatav1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/apis/influxdata/v1alpha1"
-	versioned "github.com/dev9/prod/influxdata-operator/pkg/generated/clientset/versioned"
-	internalinterfaces "github.com/dev9/prod/influxdata-operator/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/generated/listers/influxdata/v1alpha1"
+	influxdatav1alpha1 "github.com/influxdata-operator/pkg/apis/influxdata/v1alpha1"
+	versioned "github.com/influxdata-operator/pkg/generated/clientset/versioned"
+	internalinterfaces "github.com/influxdata-operator/pkg/generated/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/influxdata-operator/pkg/generated/listers/influxdata/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

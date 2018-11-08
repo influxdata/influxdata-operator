@@ -1,7 +1,7 @@
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: Standard-pv
+  name: standard-resize
 provisioner: kubernetes.io/aws-ebs
 parameters:
   type: gp2
@@ -21,4 +21,4 @@ spec:
   resources:
     requests:
       storage: 8Gi
-  storageClassName: Standard-pv
+  storageClassName: standard-resize

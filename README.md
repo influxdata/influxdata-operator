@@ -1,24 +1,53 @@
-# Influxdb Operator
+## Development
 
-A Kubernetes operator to manage Influxdb instances.
+Clone the repository to a location on your workstation, generally this should be in someplace like `$GOPATH/src/github.com/`.
+
+Navigate to the location where the repository has been cloned and install the dependencies.
+
+```
+cd YOUR_REPO_PATH
+dep ensure
+```
+
+# InfluxDB Operator
+
+A Kubernetes operator to manage InfluxDB instances.
 
 ## Overview
 
-This Operator is built using the [Operator SDK](https://github.com/operator-framework/operator-sdk), which is part of the [Operator Framework](https://github.com/operator-framework/) and manages one or more Influxdb instances deployed on Kubernetes.
+This Operator is built using the [Operator SDK](https://github.com/operator-framework/operator-sdk), which is part of the [Operator Framework](https://github.com/operator-framework/) and manages one or more InfluxDB instances deployed on Kubernetes.
 
 ## Usage
 
-The first step is to deploy the Influxdb Operator into the cluster where it
-will watch for requests to create `Influxdb` resources, much like the native
-Kubernetes Deployment Controller watches for Deployment resource requests.
+The first step is to deploy a pvc backed by a persisten volume where the InfluxDB data will be stored. Next you will deploy one file that will install the Operator, and install the manifest for InfluxDB.
 
-#### Deploy Influxdb Operator
+#### Persistent Volumes
 
-The `deploy` directory contains the manifests needed to properly install the
-Operator.
+The InfluxDB Operator supports the use of Persistent Volumes for each node in
+the InfluxDB cluster. If deploying on GKE clusters see [gcp_storage.yaml](deploy/gcp_storage.yaml).
+If deploying on EKS clusters see [aws_storage.yaml](deploy/aws_storage.yaml).
+The storage class created by each file supports resize of the persistent volume. 
+Note: Resize is only supperted on Kubernetes 1.11 and higher. [Persistent Volume Resize](https://kubernetes.io/blog/2018/07/12/resizing-persistent-volumes-using-kubernetes/)
 
 ```
-kubectl apply -f deploy
+kubectl apply -f deploy/gcp-storage.yaml
+```
+
+When deleting a InfluxDB deployment that uses Persistent Volumes, remember to
+remove the left-over volumes when the cluster is no longer needed, as these will
+not be removed automatically.
+
+```
+kubectl delete pvc -l name=influxdb-data-pvc
+```
+
+#### Deploy InfluxDB Operator & Create InfluxDB
+
+The `deploy` directory contains the manifests needed to properly install the
+Operator and InfluxDB.
+
+```
+kubectl apply -f deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml
 ```
 
 You can watch the list of pods and wait until the Operator pod is in a Running
@@ -27,64 +56,25 @@ state, it should not take long.
 ```
 kubectl get pods -wl name=influxdata-operator
 ```
+```
+kubectl get pods -wl name=influxdb-0
+```
 
 You can have a look at the logs for troubleshooting if needed.
 
 ```
 kubectl logs -l name=influxdata-operator
 ```
-
-Once the Influxdb Operator is deployed, Have a look in the `examples` directory for example manifests that create `Influxdb` resources.
-
-#### Create Influxdb Cluster
-
-Once the Operator is deployed and running, we can create an example Influxdb
-cluster. The `example` directory contains several example manifests for creating
-Influxdb clusters using the Operator.
-
 ```
-kubectl apply -f example/influxdb-minimal.yaml
+kubectl logs -l name=influxdb-0
 ```
 
-Watch the list of pods to see that each requested node starts successfully.
+This one file deploys the Operator, Service for InfluxDB, and create the manifest for InfluxDB. 
+
+#### Destroy InfluxDB Cluster
+
+Simply delete the `InfluxDB` Custom Resource to remove the cluster.
 
 ```
-kubectl get pods -wl cluster=influxdb-minimal-example
-```
-
-#### Destroy Influxdb Cluster
-
-Simply delete the `Influxdb` Custom Resource to remove the cluster.
-
-```
-kubectl delete -f example/influxdb-minimal.yaml
-```
-
-#### Persistent Volumes
-
-The Influxdb Operator supports the use of Persistent Volumes for each node in
-the Influxdb cluster. See [influxdb-custom.yaml](example/influxdb-custom.yaml)
-for the syntax to enable.
-
-```
-kubectl apply -f example/influxdb-custom.yaml
-```
-
-When deleting a Influxdb cluster that uses Persistent Volumes, remember to
-remove the left-over volumes when the cluster is no longer needed, as these will
-not be removed automatically.
-
-```
-kubectl delete influxdb,pvc -l cluster=influxdb-custom-example
-```
-
-## Development
-
-Clone the repository to a location on your workstation, generally this should be in someplace like `$GOPATH/src/github.com/ORG/REPO`.
-
-Navigate to the location where the repository has been cloned and install the dependencies.
-
-```
-cd YOUR_REPO_PATH
-dep ensure
+kubectl delete -f deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml
 ```

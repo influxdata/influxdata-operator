@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	influxdatav1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/apis/influxdata/v1alpha1"
+	influxdatav1alpha1 "github.com/influxdata-operator/pkg/apis/influxdata/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	backupDir  = "/var/lib/influxdb/backup"
+	backupDir = "/var/lib/influxdb/backup"
 )
 
 func Add(mgr manager.Manager) error {
@@ -127,7 +127,7 @@ func (r *ReconcileInfluxdbBackup) execInPod(ns string, cmdOpts []string) (string
 	podName := "influxdb-0"
 	containerName := "influxdb"
 
-	output, stderr, err := ExecToPodThroughAPI(cmd, containerName, podName,	ns, nil)
+	output, stderr, err := ExecToPodThroughAPI(cmd, containerName, podName, ns, nil)
 
 	if len(stderr) != 0 {
 		log.Println("STDERR:", stderr)
