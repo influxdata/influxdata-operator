@@ -19,6 +19,7 @@ This Operator is built using the [Operator SDK](https://github.com/operator-fram
 
 ## Usage
 
+<<<<<<< HEAD
 The first step is to deploy a pvc backed by a persisten volume where the InfluxDB data will be stored. Next you will deploy one file that will install the Operator, and install the manifest for InfluxDB.
 
 #### Persistent Volumes
@@ -48,27 +49,44 @@ Operator and InfluxDB.
 
 ```
 kubectl apply -f deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml
+=======
+The first step is to deploy a pvc backed by a persisten volume where the Influxdb data will be stored. Next you will deploy one file that will install the Operator, and install the manifest for Influxdb.
+
+#### Persistent Volumes
+
+The Influxdb Operator supports the use of Persistent Volumes for each node in
+the Influxdb cluster. If deploying on GKE clusters see [gcp_storage.yaml](deploy/gcp_storage.yaml).
+If deploying on EKS clusters see [aws_storage.yaml](deploy/aws_storage.yaml).
+
+```
+kubectl apply -f deploy/gcp-storage.yaml
+>>>>>>> master
 ```
 
-You can watch the list of pods and wait until the Operator pod is in a Running
-state, it should not take long.
+When deleting a Influxdb deployment that uses Persistent Volumes, remember to
+remove the left-over volumes when the cluster is no longer needed, as these will
+not be removed automatically.
 
 ```
-kubectl get pods -wl name=influxdata-operator
+kubectl delete pvc -l name=influxdb-data-pvc
 ```
 ```
 kubectl get pods -wl name=influxdb-0
 ```
 
-You can have a look at the logs for troubleshooting if needed.
+#### Deploy Influxdb Operator & Create Influxdb
+
+The `deploy` directory contains the manifests needed to properly install the
+Operator and Influxdb.
 
 ```
-kubectl logs -l name=influxdata-operator
+kubectl apply -f deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml
 ```
 ```
 kubectl logs -l name=influxdb-0
 ```
 
+<<<<<<< HEAD
 This one file deploys the Operator, Service for InfluxDB, and create the manifest for InfluxDB. 
 
 #### Destroy InfluxDB Cluster
@@ -105,6 +123,35 @@ You can have a look at the logs for troubleshooting if needed.
 
 ```
 kubectl get pods -wl name=influxdata-operator
+=======
+You can watch the list of pods and wait until the Operator pod is in a Running
+state, it should not take long.
+
+```
+kubectl get pods -wl name=influxdata-operator
+```
+```
+kubectl get pods -wl name=influxdb-0
+```
+
+You can have a look at the logs for troubleshooting if needed.
+
+```
+kubectl logs -l name=influxdata-operator
+```
+```
+kubectl logs -l name=influxdb-0
+```
+
+This one file deploys the Operator, Service for Influxdb, and create the manifest for Influxdb. 
+
+#### Destroy Influxdb Cluster
+
+Simply delete the `Influxdb` Custom Resource to remove the cluster.
+
+```
+kubectl delete -f deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml
+>>>>>>> master
 ```
 
 
