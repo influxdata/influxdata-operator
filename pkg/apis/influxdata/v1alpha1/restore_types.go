@@ -6,21 +6,20 @@ import (
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 
-// RestoreSpec defines the desired state of Restore
+// RestoreSpec defines the desired config of Restore
 type RestoreSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+	Database string `json:"database"`
+	Location string `json:"location"`
 }
 
 // RestoreStatus defines the observed state of Restore
 type RestoreStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+	RunResult string `json:"result"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // Restore is the Schema for the restores API
 // +k8s:openapi-gen=true
 type Restore struct {
@@ -32,7 +31,6 @@ type Restore struct {
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // RestoreList contains a list of Restore
 type RestoreList struct {
 	metav1.TypeMeta `json:",inline"`

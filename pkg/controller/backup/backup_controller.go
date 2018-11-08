@@ -123,7 +123,7 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 func (r *ReconcileInfluxdbBackup) execInPod(ns string, cmdOpts []string) (string, error) {
 	cmd := strings.Join(cmdOpts, " ")
 
-	// TODO: 
+	// TODO:
 	podName := "influxdb-0"
 	containerName := "influxdb"
 
