@@ -24,6 +24,6 @@ test-backup:
 	kubectl create -f deploy/crds/influxdata_v1alpha1_backup_cr.yaml
 
 .PHONY: test-restore
-test-backup:
+test-restore:
 	kubectl create -f deploy/crds/influxdata_v1alpha1_restore_cr.yaml
 

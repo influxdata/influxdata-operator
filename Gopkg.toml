@@ -53,6 +53,6 @@ required = [
     name = "k8s.io/code-generator"
     non-go = false
 
-[[constraint]]
+[[override]]
   branch = "master"
   name = "github.com/docker/spdystream"
