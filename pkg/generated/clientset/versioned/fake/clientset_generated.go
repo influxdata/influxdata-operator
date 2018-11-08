@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/dev9/prod/influxdata-operator/pkg/generated/clientset/versioned"
-	influxdatav1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/generated/clientset/versioned/typed/influxdata/v1alpha1"
-	fakeinfluxdatav1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/generated/clientset/versioned/typed/influxdata/v1alpha1/fake"
+	clientset "github.com/influxdata-operator/pkg/generated/clientset/versioned"
+	influxdatav1alpha1 "github.com/influxdata-operator/pkg/generated/clientset/versioned/typed/influxdata/v1alpha1"
+	fakeinfluxdatav1alpha1 "github.com/influxdata-operator/pkg/generated/clientset/versioned/typed/influxdata/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

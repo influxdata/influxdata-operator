@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/dev9/prod/influxdata-operator/pkg/controller/influxdb"
+	"github.com/influxdata-operator/pkg/controller/influxdb"
 )
 
 func init() {

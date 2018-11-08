@@ -19,7 +19,7 @@ limitations under the License.
 package versioned
 
 import (
-	influxdatav1alpha1 "github.com/dev9/prod/influxdata-operator/pkg/generated/clientset/versioned/typed/influxdata/v1alpha1"
+	influxdatav1alpha1 "github.com/influxdata-operator/pkg/generated/clientset/versioned/typed/influxdata/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

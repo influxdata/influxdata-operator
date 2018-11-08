@@ -18,7 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/dev9/prod/influxdata-operator/pkg/apis/influxdata/v1alpha1"
+	"github.com/influxdata-operator/pkg/apis/influxdata/v1alpha1"
 )
 
 // GetBackupCondition extracts the provided condition from the given status and returns that.
@@ -80,4 +80,3 @@ func IsBackupCompleteConditionTrue(status v1alpha1.BackupStatus) bool {
 	condition := GetBackupCompleteCondition(status)
 	return condition != nil && condition.Status == corev1.ConditionTrue
 }
-

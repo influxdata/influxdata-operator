@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/dev9/prod/influxdata-operator/pkg/generated/clientset/versioned"
-	influxdata "github.com/dev9/prod/influxdata-operator/pkg/generated/informers/externalversions/influxdata"
-	internalinterfaces "github.com/dev9/prod/influxdata-operator/pkg/generated/informers/externalversions/internalinterfaces"
+	versioned "github.com/influxdata-operator/pkg/generated/clientset/versioned"
+	influxdata "github.com/influxdata-operator/pkg/generated/informers/externalversions/influxdata"
+	internalinterfaces "github.com/influxdata-operator/pkg/generated/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
