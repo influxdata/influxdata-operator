@@ -101,8 +101,20 @@ rules:
   - events
   - configmaps
   - secrets
+  - pods/attach
+  - pods/exec
+  - pods/portforward
+  - pods/proxy
+  - secrets
+  - services/proxy
+  - namespaces
   verbs:
   - '*'
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - apps
   resources:
