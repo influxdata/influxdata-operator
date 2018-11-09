@@ -53,6 +53,15 @@ required = [
     name = "k8s.io/code-generator"
     non-go = false
 
+# required for remote exec
 [[override]]
   branch = "master"
   name = "github.com/docker/spdystream"
+
+[[constraint]]
+  name = "github.com/aws/aws-sdk-go"
+  version = "1.15.72"
+
+# Required by aws sdk
+[[override]]
+  name = "github.com/jmespath/go-jmespath"

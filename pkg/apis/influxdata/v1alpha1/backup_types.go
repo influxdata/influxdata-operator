@@ -6,7 +6,36 @@ import (
 
 // BackupSpec defines the specification for a backup.
 type BackupSpec struct {
-	Database string `json:"database"`
+	Databases []string `json:"databases"`
+	Storage BackupStorage `json:"storage"`
+}
+
+type BackupStorage struct {
+	S3 S3BackupStorage `json:"s3,omitempty"`
+}
+
+type S3BackupStorage struct {
+	AwsKeyId SecretRef `json:"aws_key_id"`
+	AwsSecretKey SecretRef `json:"aws_secret_key"`
+	Bucket string `json:"bucket"`
+	Folder string `json:"folder"`
+	Region string `json:"region"`
+}
+
+// TODO: Are there built-in k8s structures we could use instead of defining our own?
+
+type SecretRef struct {
+	SecretKeyRef *KubernetesSecret `json:"secretKeyRef"`
+}
+
+type ValueFrom struct {
+	SecretKeyRef KubernetesSecret `json:"secretKeyRef"`
+}
+
+type KubernetesSecret struct {
+	Name      string `json:"name"`
+	Key       string `json:"key"`
+	Namespace string `json:"namespace"`
 }
 
 // BackupStatus defines the observed state of Backup

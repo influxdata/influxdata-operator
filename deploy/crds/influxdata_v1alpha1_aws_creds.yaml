@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: influxdb-backup
+type: Opaque
+data:
+    awsAccessKeyId: <base64encoded>
+    awsSecretAccesKey: <base64encoded>
