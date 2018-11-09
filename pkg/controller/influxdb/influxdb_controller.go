@@ -10,7 +10,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -104,6 +103,18 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
+	// Reconcile the cluster service
+	err = r.reconcileService(influxdb)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// Reconcile the cluster service
+	err = r.reconcilePVC(influxdb)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	// Check if the statefulset already exists, if not create a new one
 	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: influxdb.Name, Namespace: influxdb.Namespace}, found)
@@ -161,11 +172,80 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, nil
 }
 
+// reconcileService ensures the Service is created.
+func (r *ReconcileInfluxdb) reconcileService(cr *influxdatav1alpha1.Influxdb) error {
+	// Check if this Service already exists
+	found := &corev1.Service{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cr.Name, Namespace: cr.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		log.Printf("Creating a new Service %s/%s", cr.Namespace, cr.Name)
+		svc := newService(cr)
+
+		// Set InfluxDB instance as the owner and controller
+		if err = controllerutil.SetControllerReference(cr, svc, r.scheme); err != nil {
+			return err
+		}
+
+		err = r.client.Create(context.TODO(), svc)
+		if err != nil {
+			return err
+		}
+
+		// Service created successfully
+		cr.Status.ServiceName = svc.Name
+		err = r.client.Update(context.TODO(), cr)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	log.Printf("Skip reconcile: Service %s/%s already exists", found.Namespace, found.Name)
+	return nil
+}
+
+// reconcileService ensures the Persistent Volume Claim is created.
+func (r *ReconcileInfluxdb) reconcilePVC(cr *influxdatav1alpha1.Influxdb) error {
+	// Check if this Persitent Volume Claim already exists
+	found := &corev1.PersistentVolumeClaim{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cr.Name, Namespace: cr.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		log.Printf("Creating a new Persistent Volume Claim %s/%s", cr.Namespace, cr.Name)
+		pvc := newPVCs(cr)
+
+		// Set InfluxDB instance as the owner and controller
+		if err = controllerutil.SetControllerReference(cr, pvc, r.scheme); err != nil {
+			return err
+		}
+
+		err = r.client.Create(context.TODO(), pvc)
+		if err != nil {
+			return err
+		}
+
+		// Persitent Volume Claim created successfully
+		cr.Status.PersistentVolumeClaimName = pvc.Name
+		err = r.client.Update(context.TODO(), cr)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	log.Printf("Skip reconcile: Persistent Volume Claim %s/%s already exists", found.Namespace, found.Name)
+	return nil
+}
+
 // statefulsetForInfluxdb returns a influxdb Deployment object
 func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxdb) *appsv1.StatefulSet {
 	ls := labelsForInfluxdb(m.Name)
 	replicas := m.Spec.Size
-	Image := m.Spec.Image
 
 	dep := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
@@ -188,9 +268,9 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Image:           Image,
+						Image:           m.Spec.BaseImage,
 						Name:            "influxdb",
-						ImagePullPolicy: "Always",
+						ImagePullPolicy: m.Spec.ImagePullPolicy,
 						Ports: []corev1.ContainerPort{
 							{
 								Name:          "api",
@@ -229,16 +309,7 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 								Protocol:      corev1.ProtocolTCP,
 							},
 						},
-						Resources: corev1.ResourceRequirements{
-							Limits: corev1.ResourceList{
-								corev1.ResourceCPU:    resource.MustParse("8"),
-								corev1.ResourceMemory: resource.MustParse("16Gi"),
-							},
-							Requests: corev1.ResourceList{
-								corev1.ResourceCPU:    resource.MustParse("0.1"),
-								corev1.ResourceMemory: resource.MustParse("256Mi"),
-							},
-						},
+						Resources: newContainerResources(m),
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "influxdb-config",
@@ -278,6 +349,69 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 	// Set Influxdb instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep
+}
+
+// newContainerResources will create the container Resources for the InfluxDB Pod.
+func newContainerResources(m *influxdatav1alpha1.Influxdb) corev1.ResourceRequirements {
+	resources := corev1.ResourceRequirements{}
+	if m.Spec.Pod != nil {
+		resources = m.Spec.Pod.Resources
+	}
+	return resources
+}
+
+// newServicePorts constructs the ServicePort objects for the Service.
+func newServicePorts(m *influxdatav1alpha1.Influxdb) []corev1.ServicePort {
+	var ports []corev1.ServicePort
+
+	ports = append(ports, corev1.ServicePort{Port: 8086, Name: "api"},
+		corev1.ServicePort{Port: 2003, Name: "graphite"},
+		corev1.ServicePort{Port: 25826, Name: "collectd"},
+		corev1.ServicePort{Port: 8089, Name: "udp"},
+		corev1.ServicePort{Port: 4242, Name: "opentsdb"},
+		corev1.ServicePort{Port: 8088, Name: "backup-restore"},
+	)
+	return ports
+}
+
+// newService constructs a new Service object.
+func newService(m *influxdatav1alpha1.Influxdb) *corev1.Service {
+	ls := labelsForInfluxdb(m.Name)
+
+	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "influxdb-svc",
+			Namespace: m.ObjectMeta.Namespace,
+			Labels:    ls,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: ls,
+			Type:     "ClusterIP",
+			Ports:    newServicePorts(m),
+		},
+	}
+}
+
+// newPVCs creates the PVCs used by the application.
+func newPVCs(cr *influxdatav1alpha1.Influxdb) *corev1.PersistentVolumeClaim {
+	ls := labelsForInfluxdb(cr.Name)
+
+	return &corev1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "influxdb-data-pvc",
+			Namespace: cr.ObjectMeta.Namespace,
+			Labels:    ls,
+		},
+		Spec: *cr.Spec.Pod.PersistentVolumeClaimSpec,
+	}
 }
 
 // labelsForInfluxdb returns the labels for selecting the resources
