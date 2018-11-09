@@ -103,18 +103,15 @@ rules:
   - secrets
   - pods/attach
   - pods/exec
-  - pods/portforward
-  - pods/proxy
-  - secrets
-  - services/proxy
   - namespaces
   verbs:
   - '*'
-  - get
-  - list
-  - patch
-  - update
-  - watch
+- apiGroups:
+  - ""
+  resources:
+  - '*'
+  verbs:
+  - '*'
 - apiGroups:
   - apps
   resources:
