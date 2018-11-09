@@ -106,3 +106,41 @@ You can have a look at the logs for troubleshooting if needed.
 ```
 kubectl get pods -wl name=influxdata-operator
 ```
+
+
+#### Use backups to restore a database
+
+
+First check the backup logs to get the backup directories that storing the backup data :
+
+```
+kubectl logs influxdata-operator-f8889bd86-527wn | grep "backup"
+```
+
+
+Ex : the yaml file below will restore the database from /var/lib/influxdb/backup/20181109205352
+
+
+```
+apiVersion: influxdata.com/v1alpha1
+kind: Restore
+metadata:
+  name: influxdb-restore
+spec:
+  location: /var/lib/influxdb/backup/20181109205352 
+```
+
+
+
+```
+kubectl create -f deploy/crds/influxdata_v1alpha1_restore_cr.yaml
+```
+
+You can have a look at the logs for troubleshooting if needed.
+
+
+```
+kubectl get pods -wl name=influxdata-operator
+```
+
+

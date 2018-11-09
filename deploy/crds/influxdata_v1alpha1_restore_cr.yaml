@@ -1,7 +1,6 @@
 apiVersion: influxdata.com/v1alpha1
 kind: Restore
 metadata:
-  name: example-restore
+  name: influxdb-restore
 spec:
-  database: test
-  location: /var/lib/influxdb/backup/20181108202752
+  location: /var/lib/influxdb/backup/20181109205352 

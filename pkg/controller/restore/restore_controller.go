@@ -102,8 +102,6 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 		"influxd",
 		"restore",
 		"-portable",
-		"-db " + instance.Spec.Database,
-		"-newdb " + instance.Spec.Database + "_restore",
 		instance.Spec.Location,
 	})
 	if err != nil {

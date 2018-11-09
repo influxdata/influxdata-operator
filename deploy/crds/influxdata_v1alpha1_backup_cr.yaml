@@ -1,7 +1,6 @@
 apiVersion: influxdata.com/v1alpha1
 kind: Backup
 metadata:
-  name: example-backup
+  name: influxdb-backup
 spec:
-  database: "test"
-  hostname: "foo"
+  database: "testdb"
