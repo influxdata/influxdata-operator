@@ -3,5 +3,4 @@ kind: Backup
 metadata:
   name: example-backup
 spec:
-  database: "test"
-  hostname: "foo"
+  database: "testdb"
