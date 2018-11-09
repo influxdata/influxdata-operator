@@ -10,7 +10,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -206,7 +205,6 @@ func (r *ReconcileInfluxdb) reconcileService(cr *influxdatav1alpha1.Influxdb) er
 func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxdb) *appsv1.StatefulSet {
 	ls := labelsForInfluxdb(m.Name)
 	replicas := m.Spec.Size
-	Image := m.Spec.Image
 
 	dep := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
@@ -229,9 +227,9 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Image:           Image,
+						Image:           m.Spec.BaseImage,
 						Name:            "influxdb",
-						ImagePullPolicy: "Always",
+						ImagePullPolicy: m.Spec.ImagePullPolicy,
 						Ports: []corev1.ContainerPort{
 							{
 								Name:          "api",
@@ -270,16 +268,7 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 								Protocol:      corev1.ProtocolTCP,
 							},
 						},
-						Resources: corev1.ResourceRequirements{
-							Limits: corev1.ResourceList{
-								corev1.ResourceCPU:    resource.MustParse("8"),
-								corev1.ResourceMemory: resource.MustParse("16Gi"),
-							},
-							Requests: corev1.ResourceList{
-								corev1.ResourceCPU:    resource.MustParse("0.1"),
-								corev1.ResourceMemory: resource.MustParse("256Mi"),
-							},
-						},
+						Resources: newContainerResources(m),
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "influxdb-config",
@@ -319,6 +308,15 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 	// Set Influxdb instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep
+}
+
+// newContainerResources will create the container Resources for the InfluxDB Pod.
+func newContainerResources(m *influxdatav1alpha1.Influxdb) corev1.ResourceRequirements {
+	resources := corev1.ResourceRequirements{}
+	if m.Spec.Pod != nil {
+		resources = m.Spec.Pod.Resources
+	}
+	return resources
 }
 
 // newServicePorts constructs the ServicePort objects for the Service.

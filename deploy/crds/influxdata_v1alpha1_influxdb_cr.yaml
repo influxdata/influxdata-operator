@@ -58,7 +58,7 @@ spec:
       containers:
         - name: influxdata-operator
           # Replace this with the built image name
-          image: mbelot/influxdata-operator:v2.3
+          image: mbelot/influxdata-operator:v2.4
           ports:
           - containerPort: 60000
             name: metrics
@@ -261,5 +261,13 @@ metadata:
 spec:
   # Add fields here
   size: 1
-  image: influxdb:1.6.3-alpine
+  baseImage: influxdb:1.6.3-alpine
   imagePullPolicy: Always
+  pod:
+    resources:
+      limits:
+        cpu: 8
+        memory: 16Gi
+      requests:
+        cpu: 0.1
+        memory: 256Mi
