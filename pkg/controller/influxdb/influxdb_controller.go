@@ -109,6 +109,12 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
+	// Reconcile the cluster service
+	err = r.reconcilePVC(influxdb)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	// Check if the statefulset already exists, if not create a new one
 	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: influxdb.Name, Namespace: influxdb.Namespace}, found)
@@ -198,6 +204,41 @@ func (r *ReconcileInfluxdb) reconcileService(cr *influxdatav1alpha1.Influxdb) er
 	}
 
 	log.Printf("Skip reconcile: Service %s/%s already exists", found.Namespace, found.Name)
+	return nil
+}
+
+// reconcileService ensures the Persistent Volume Claim is created.
+func (r *ReconcileInfluxdb) reconcilePVC(cr *influxdatav1alpha1.Influxdb) error {
+	// Check if this Persitent Volume Claim already exists
+	found := &corev1.PersistentVolumeClaim{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cr.Name, Namespace: cr.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		log.Printf("Creating a new Persistent Volume Claim %s/%s", cr.Namespace, cr.Name)
+		pvc := newPVCs(cr)
+
+		// Set InfluxDB instance as the owner and controller
+		if err = controllerutil.SetControllerReference(cr, pvc, r.scheme); err != nil {
+			return err
+		}
+
+		err = r.client.Create(context.TODO(), pvc)
+		if err != nil {
+			return err
+		}
+
+		// Persitent Volume Claim created successfully
+		cr.Status.PersistentVolumeClaimName = pvc.Name
+		err = r.client.Update(context.TODO(), cr)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	log.Printf("Skip reconcile: Persistent Volume Claim %s/%s already exists", found.Namespace, found.Name)
 	return nil
 }
 
@@ -352,6 +393,24 @@ func newService(m *influxdatav1alpha1.Influxdb) *corev1.Service {
 			Type:     "ClusterIP",
 			Ports:    newServicePorts(m),
 		},
+	}
+}
+
+// newPVCs creates the PVCs used by the application.
+func newPVCs(cr *influxdatav1alpha1.Influxdb) *corev1.PersistentVolumeClaim {
+	ls := labelsForInfluxdb(cr.Name)
+
+	return &corev1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "influxdb-data-pvc",
+			Namespace: cr.ObjectMeta.Namespace,
+			Labels:    ls,
+		},
+		Spec: *cr.Spec.Pod.PersistentVolumeClaimSpec,
 	}
 }
 

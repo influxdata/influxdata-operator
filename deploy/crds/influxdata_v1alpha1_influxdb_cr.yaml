@@ -58,7 +58,7 @@ spec:
       containers:
         - name: influxdata-operator
           # Replace this with the built image name
-          image: mbelot/influxdata-operator:v2.4
+          image: mbelot/influxdata-operator:v2.5
           ports:
           - containerPort: 60000
             name: metrics
@@ -271,3 +271,9 @@ spec:
       requests:
         cpu: 0.1
         memory: 256Mi
+    persistentVolumeClaimSpec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: standard-resize
+      resources:
+        requests:
+          storage: 8Gi

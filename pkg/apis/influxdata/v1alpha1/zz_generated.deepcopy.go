@@ -21,6 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -224,6 +225,11 @@ func (in *InfluxdbStatus) DeepCopy() *InfluxdbStatus {
 func (in *PodPolicy) DeepCopyInto(out *PodPolicy) {
 	*out = *in
 	in.Resources.DeepCopyInto(&out.Resources)
+	if in.PersistentVolumeClaimSpec != nil {
+		in, out := &in.PersistentVolumeClaimSpec, &out.PersistentVolumeClaimSpec
+		*out = new(v1.PersistentVolumeClaimSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

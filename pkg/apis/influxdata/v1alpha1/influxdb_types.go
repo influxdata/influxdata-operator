@@ -12,6 +12,9 @@ import (
 type PodPolicy struct {
 	// Resources is the resource requirements for the containers.
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+	// PersistentVolumeClaimSpec is the spec to describe PVC for the influxdb container
+	// This field is optional. If no PVC spec, influxdb container will use emptyDir as volume
+	PersistentVolumeClaimSpec *corev1.PersistentVolumeClaimSpec `json:"persistentVolumeClaimSpec,omitempty"`
 }
 
 // InfluxdbSpec defines the desired state of Influxdb
@@ -36,6 +39,8 @@ type InfluxdbStatus struct {
 	Nodes []string `json:"nodes"`
 	// ServiceName is the name of the Service for accessing the pods in the cluster.
 	ServiceName string `json:"serviceName"`
+	// PersistentVolumeClaimName is the name of the PVC backing the pods in the cluster.
+	PersistentVolumeClaimName string `json:"persistentVolumeClaimName"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
