@@ -20,6 +20,8 @@ type InfluxdbStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	Nodes []string `json:"nodes"`
+	// ServiceName is the name of the Service for accessing the pods in the cluster.
+	ServiceName string `json:"serviceName"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -42,8 +44,6 @@ type InfluxdbList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Influxdb `json:"items"`
 }
-
-
 
 func init() {
 	SchemeBuilder.Register(&Influxdb{}, &InfluxdbList{})

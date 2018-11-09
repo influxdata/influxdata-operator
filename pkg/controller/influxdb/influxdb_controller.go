@@ -104,6 +104,12 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
+	// Reconcile the cluster service
+	err = r.reconcileService(influxdb)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	// Check if the statefulset already exists, if not create a new one
 	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: influxdb.Name, Namespace: influxdb.Namespace}, found)
@@ -159,6 +165,41 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// reconcileService ensures the Service is created.
+func (r *ReconcileInfluxdb) reconcileService(cr *influxdatav1alpha1.Influxdb) error {
+	// Check if this Service already exists
+	found := &corev1.Service{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cr.Name, Namespace: cr.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		log.Printf("Creating a new Service %s/%s", cr.Namespace, cr.Name)
+		svc := newService(cr)
+
+		// Set InfluxDB instance as the owner and controller
+		if err = controllerutil.SetControllerReference(cr, svc, r.scheme); err != nil {
+			return err
+		}
+
+		err = r.client.Create(context.TODO(), svc)
+		if err != nil {
+			return err
+		}
+
+		// Service created successfully
+		cr.Status.ServiceName = svc.Name
+		err = r.client.Update(context.TODO(), cr)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	log.Printf("Skip reconcile: Service %s/%s already exists", found.Namespace, found.Name)
+	return nil
 }
 
 // statefulsetForInfluxdb returns a influxdb Deployment object
@@ -278,6 +319,42 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 	// Set Influxdb instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep
+}
+
+// newServicePorts constructs the ServicePort objects for the Service.
+func newServicePorts(m *influxdatav1alpha1.Influxdb) []corev1.ServicePort {
+	var ports []corev1.ServicePort
+
+	ports = append(ports, corev1.ServicePort{Port: 8086, Name: "api"},
+		corev1.ServicePort{Port: 2003, Name: "graphite"},
+		corev1.ServicePort{Port: 25826, Name: "collectd"},
+		corev1.ServicePort{Port: 8089, Name: "udp"},
+		corev1.ServicePort{Port: 4242, Name: "opentsdb"},
+		corev1.ServicePort{Port: 8088, Name: "backup-restore"},
+	)
+	return ports
+}
+
+// newService constructs a new Service object.
+func newService(m *influxdatav1alpha1.Influxdb) *corev1.Service {
+	ls := labelsForInfluxdb(m.Name)
+
+	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "influxdb-svc",
+			Namespace: m.ObjectMeta.Namespace,
+			Labels:    ls,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: ls,
+			Type:     "ClusterIP",
+			Ports:    newServicePorts(m),
+		},
+	}
 }
 
 // labelsForInfluxdb returns the labels for selecting the resources
