@@ -97,7 +97,6 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	log.Printf("Restore DB: %s, To DB: %s_restore, Backup key: %s", instance.Spec.Database, instance.Spec.Database, instance.Spec.Location)
 
-	return reconcile.Result{}, nil
 	output, err := r.execInPod(request.Namespace, []string{
 		"influxd",
 		"restore",
@@ -134,4 +133,3 @@ func (r *ReconcileRestore) execInPod(ns string, cmdOpts []string) (string, error
 		return output, nil
 	}
 }
-

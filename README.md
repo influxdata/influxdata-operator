@@ -111,7 +111,7 @@ kubectl get pods -wl name=influxdata-operator
 #### Use backups to restore a database
 
 
-First check the backup logs to get the backup directories that storing the backup data :
+First check the backup logs to get the backup directories that storing the backup data which can be used in yaml file for restore :
 
 ```
 kubectl logs influxdata-operator-f8889bd86-527wn | grep "backup"

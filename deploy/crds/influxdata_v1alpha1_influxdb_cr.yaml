@@ -58,7 +58,7 @@ spec:
       containers:
         - name: influxdata-operator
           # Replace this with the built image name
-          image: aaltameemi/influxdb-operator:v3.0.2 
+          image: aaltameemi/influxdb-operator:v5.0.1 
           ports:
           - containerPort: 60000
             name: metrics

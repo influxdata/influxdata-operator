@@ -3,4 +3,4 @@ kind: Restore
 metadata:
   name: influxdb-restore
 spec:
-  location: /var/lib/influxdb/backup/20181109205352 
+  location: /var/lib/influxdb/backup/20181112182303 
