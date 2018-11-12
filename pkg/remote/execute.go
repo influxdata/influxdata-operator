@@ -74,12 +74,8 @@ func CopyFromPod(src, dest string) error {
 		options.execute()
 	}()
 
-	prefix := getPrefix(srcSpec.File)
-	prefix = path.Clean(prefix)
+	prefix := path.Clean(srcSpec.File)
 
-	// remove extraneous path shortcuts - these could occur if a path contained extra "../"
-	// and attempted to navigate beyond "/" in a remote filesystem
-	prefix = stripPathShortcuts(prefix)
 	return untarAll(reader, destSpec.File, prefix)
 }
 
@@ -254,31 +250,4 @@ func dirExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
-}
-
-// stripPathShortcuts removes any leading or trailing "../" from a given path
-func stripPathShortcuts(p string) string {
-	newPath := path.Clean(p)
-	trimmed := strings.TrimPrefix(newPath, "../")
-
-	for trimmed != newPath {
-		newPath = trimmed
-		trimmed = strings.TrimPrefix(newPath, "../")
-	}
-
-	// trim leftover ".."
-	if newPath == ".." {
-		newPath = ""
-	}
-
-	if len(newPath) > 0 && string(newPath[0]) == "/" {
-		return newPath[1:]
-	}
-
-	return newPath
-}
-
-func getPrefix(file string) string {
-	// tar strips the leading '/' if it's there, so we will too
-	return strings.TrimLeft(file, "/")
 }
