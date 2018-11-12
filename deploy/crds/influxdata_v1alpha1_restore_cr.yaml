@@ -3,4 +3,22 @@ kind: Restore
 metadata:
   name: influxdb-restore
 spec:
-  location: /var/lib/influxdb/backup/20181112182303 
+  databases:
+  - "test"
+  source:
+    s3:
+      aws_key_id:
+        valueFrom:
+          secretKeyRef:
+            name: influxdb-backup
+            key: awsAccessKeyId
+      aws_secret_key:
+        valueFrom:
+          secretKeyRef:
+            name: influxdb-backup
+            key: awsSecretAccesKey
+            # namespace: optional-namespace-name
+      bucket: influxdb-backup-restore
+      folder: /backup
+      region: us-west-2
+      backupId: 20181108202752

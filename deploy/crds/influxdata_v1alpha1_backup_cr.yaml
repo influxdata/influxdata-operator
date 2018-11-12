@@ -3,4 +3,21 @@ kind: Backup
 metadata:
   name: influxdb-backup
 spec:
-  database: "testdb"
+  databases:
+    - test
+  storage:
+    s3:
+      aws_key_id:
+        valueFrom:
+          secretKeyRef:
+            name: influxdb-backup
+            key: awsAccessKeyId
+      aws_secret_key:
+        valueFrom:
+          secretKeyRef:
+            name: influxdb-backup
+            key: awsSecretAccesKey
+            # namespace: optional-namespace-name
+      bucket: influxdb-backup-restore
+      folder: /backup
+      region: us-west-2
