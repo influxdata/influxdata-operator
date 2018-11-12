@@ -2,7 +2,6 @@ package backup
 
 import (
 	"context"
-	"fmt"
 	"github.com/influxdata-operator/pkg/storage"
 	"io/ioutil"
 	"log"
@@ -109,12 +108,12 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 	destFile   := "/tmp/influxdb-backup/" + backupTime
 
 	if err := os.MkdirAll(destFile, os.ModeType); err != nil {
-		log.Printf("Error creating local backup directory %s", destFile)
+		return reconcile.Result{}, err
 	}
 
 	if &backup.Spec.Storage.S3 != nil {
 		if err := myremote.CopyFromPod(sourceFile, destFile); err != nil {
-			log.Printf("Error during copy: %v", err)
+			log.Printf("error during copy from [%s] to [%s]: %v", sourceFile, destFile, err)
 			return reconcile.Result{}, err
 		}
 
@@ -142,7 +141,7 @@ func storeInS3(client client.Client, backupStorage influxdatav1alpha1.S3BackupSt
 	localFolder := "/tmp/influxdb-backup/" + srcFolder
 	files, err := ioutil.ReadDir(localFolder)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 
 	// Loop through files in the source directory, send to s3
@@ -150,10 +149,13 @@ func storeInS3(client client.Client, backupStorage influxdatav1alpha1.S3BackupSt
 		localFile := localFolder + "/" + file.Name()
 		f, err := os.Open(localFile)
 		if err != nil {
-			return "", fmt.Errorf("unable to open local file: %s", localFile)
+			return "", err
 		}
 
-		provider.Store(storageKey + "/" + file.Name(), f)
+		err = provider.Store(storageKey + "/" + file.Name(), f)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return "s3://" + backupStorage.Bucket + "/" + storageKey, nil

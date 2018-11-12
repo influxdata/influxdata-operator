@@ -131,7 +131,7 @@ func getSecretValue(k8sClient client.Client, namespace string, secretName string
 
 	decoded, err := base64.StdEncoding.DecodeString(string(value))
 	if err != nil {
-		return "", fmt.Errorf("Error Base64-decoding secret")
+		return "", err
 	}
 
 	return string(decoded), nil
