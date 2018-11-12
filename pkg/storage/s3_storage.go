@@ -30,6 +30,8 @@ type S3StorageProvider struct {
 
 // NewProvider creates a new S3 (compatible) storage provider.
 func NewS3StorageProvider(k8sClient client.Client, s3spec *v1alpha1.S3BackupStorage) (*S3StorageProvider, error) {
+	log.Println("Creating S3 Storage Provider")
+
 	accessKey, secretKey, err := getCredentials(k8sClient, s3spec)
 	if err != nil {
 		return nil, errors.WithStack(err)

@@ -152,6 +152,7 @@ func storeInS3(client client.Client, backupStorage influxdatav1alpha1.S3BackupSt
 			return "", err
 		}
 
+		log.Println("Storing To S3: [%s] to [%s]", localFile, storageKey + "/" + file.Name())
 		err = provider.Store(storageKey + "/" + file.Name(), f)
 		if err != nil {
 			return "", err

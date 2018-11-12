@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	"log"
 	"net/url"
 	"os"
 	"path"
@@ -71,7 +72,11 @@ func CopyFromPod(src, dest string) error {
 	// run in separate thread... only because that's what they do in the k8s source.
 	go func() {
 		defer outStream.Close()
-		options.execute()
+		log.Println("Starting tar execution...")
+		err := options.execute()
+		if err != nil {
+			panic(err)
+		}
 	}()
 
 	prefix := path.Clean(srcSpec.File)
@@ -120,6 +125,7 @@ func (o *RemoteCopyOptions) execute() error {
 				TTY:       false,
 		}, runtime.NewParameterCodec(scheme))
 
+		log.Println("Executing POST to stream TAR data back...")
 		return remoteExecute("POST", req.URL(), o.ClientConfig, o.Stdin, o.Stdout, o.Stderr)
 	}
 
