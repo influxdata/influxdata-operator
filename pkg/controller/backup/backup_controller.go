@@ -105,28 +105,34 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 	}
 
 	sourceFile := request.NamespacedName.String() + ":" + backupDir + "/"+ backupTime
-	destFile   := "/tmp/influxdb-backup/" + backupTime
+	destFile   := os.TempDir() + "/influxdb-backup/" + backupTime
 
-	if err := os.MkdirAll(destFile, os.ModeType); err != nil {
+	log.Printf("About to os.MkdirAll for local download target")
+	if err := os.MkdirAll(destFile, os.ModePerm); err != nil {
+		log.Printf("Unable to make directories: %v\n", err)
 		return reconcile.Result{}, err
 	}
 
+	log.Printf("About to check for s3 \n")
 	if &backup.Spec.Storage.S3 != nil {
+		log.Println("Shipping influx backup to S3...")
 		if err := myremote.CopyFromPod(sourceFile, destFile); err != nil {
-			log.Printf("error during copy from [%s] to [%s]: %v", sourceFile, destFile, err)
+			log.Printf("error during copy from [%s] to [%s]: %v\n", sourceFile, destFile, err)
 			return reconcile.Result{}, err
 		}
 
 		s3location, err := storeInS3(r.client, backup.Spec.Storage.S3, backupTime)
 
 		if err != nil {
-			log.Printf("Error during S3 storage: %v", err)
+			log.Printf("Error during S3 storage: %v\n", err)
 			return reconcile.Result{}, err
 		}
 
-		log.Printf("Backups stored to %s", s3location)
+		log.Printf("Backups stored to %s\n", s3location)
 	}
 
+
+	log.Println("Done with reconcile!")
 	return reconcile.Result{}, nil
 }
 
