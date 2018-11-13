@@ -86,21 +86,21 @@ func (p *S3StorageProvider) Retrieve(key string) (io.ReadCloser, error) {
 
 // getCredentials gets an accesskey and secretKey from the provided map.
 func getCredentials(k8sClient client.Client, spec *v1alpha1.S3BackupStorage) (string, string, error) {
-	accessKey, err := getSecretValue(k8sClient, spec.AwsKeyId.SecretKeyRef.Namespace,
-		spec.AwsKeyId.SecretKeyRef.Name, spec.AwsKeyId.SecretKeyRef.Key)
+	accessKey, err := getSecretValue(k8sClient, spec.AwsKeyId.ValueFrom.SecretKeyRef.Namespace,
+		spec.AwsKeyId.ValueFrom.SecretKeyRef.Name, spec.AwsKeyId.ValueFrom.SecretKeyRef.Key)
 
 	if err != nil {
-		log.Fatalf("Could not retrieve key id %s/%s/%s", spec.AwsKeyId.SecretKeyRef.Namespace,
-			spec.AwsKeyId.SecretKeyRef.Name, spec.AwsKeyId.SecretKeyRef.Key)
+		log.Fatalf("Could not retrieve key id %s/%s/%s", spec.AwsKeyId.ValueFrom.SecretKeyRef.Namespace,
+			spec.AwsKeyId.ValueFrom.SecretKeyRef.Name, spec.AwsKeyId.ValueFrom.SecretKeyRef.Key)
 		return "", "", err
 	}
 
-	secretKey, err := getSecretValue(k8sClient, spec.AwsSecretKey.SecretKeyRef.Namespace,
-		spec.AwsSecretKey.SecretKeyRef.Name, spec.AwsSecretKey.SecretKeyRef.Key)
+	secretKey, err := getSecretValue(k8sClient, spec.AwsSecretKey.ValueFrom.SecretKeyRef.Namespace,
+		spec.AwsSecretKey.ValueFrom.SecretKeyRef.Name, spec.AwsSecretKey.ValueFrom.SecretKeyRef.Key)
 
 	if err != nil {
-		log.Fatalf("Could not retrieve secret key %s/%s/%s", spec.AwsKeyId.SecretKeyRef.Namespace,
-			spec.AwsKeyId.SecretKeyRef.Name, spec.AwsKeyId.SecretKeyRef.Key)
+		log.Fatalf("Could not retrieve secret key %s/%s/%s", spec.AwsKeyId.ValueFrom.SecretKeyRef.Namespace,
+			spec.AwsKeyId.ValueFrom.SecretKeyRef.Name, spec.AwsKeyId.ValueFrom.SecretKeyRef.Key)
 		return "", "", err
 	}
 

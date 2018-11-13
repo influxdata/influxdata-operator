@@ -19,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"strings"
 )
 
 const (
@@ -90,13 +89,33 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 
 	backupTime := time.Now().UTC().Format("20060102150405")
 
-	output, err := r.execInPod(request.Namespace, []string{
+	cmdOpts := []string{
 		"influxd",
 		"backup",
 		"-portable",
 		"-database " + backup.Spec.Databases[0],
 		backupDir + "/" + backupTime,
-	})
+	}
+
+	// TODO: Parameterize? Get from config?
+	podName := "influxdb-0"
+	containerName := "influxdb"
+
+	k8s, err := myremote.NewK8sClient()
+	if err != nil {
+		log.Printf("Error occurred while getting K8s Client: %+v", err)
+		return reconcile.Result{}, err
+	}
+
+	outputBytes, stderrBytes, err := k8s.Exec(request.Namespace, podName, containerName, cmdOpts, nil)
+
+	stderr := stderrBytes.String()
+	output := outputBytes.String()
+
+	if len(stderr) != 0 {
+		log.Println("STDERR:", stderr)
+	}
+
 	if err != nil {
 		log.Printf("Error occured while running backup command: %v", err)
 		return reconcile.Result{}, err
@@ -115,13 +134,20 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 
 	log.Printf("About to check for s3 \n")
 	if &backup.Spec.Storage.S3 != nil {
+		provider, err := storage.NewS3StorageProvider(r.client, &backup.Spec.Storage.S3)
+
+		if err != nil {
+			log.Printf("error creating s3 storage provider: %v", err)
+			return reconcile.Result{}, err
+		}
+
 		log.Println("Shipping influx backup to S3...")
-		if err := myremote.CopyFromPod(sourceFile, destFile); err != nil {
+		if err := k8s.CopyFromK8s(sourceFile, destFile); err != nil {
 			log.Printf("error during copy from [%s] to [%s]: %v\n", sourceFile, destFile, err)
 			return reconcile.Result{}, err
 		}
 
-		s3location, err := storeInS3(r.client, backup.Spec.Storage.S3, backupTime)
+		s3location, err := storeInS3(provider, backup.Spec.Storage.S3, backupTime, destFile)
 
 		if err != nil {
 			log.Printf("Error during S3 storage: %v\n", err)
@@ -136,15 +162,10 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 	return reconcile.Result{}, nil
 }
 
-func storeInS3(client client.Client, backupStorage influxdatav1alpha1.S3BackupStorage, srcFolder string) (string, error) {
-	provider, err := storage.NewS3StorageProvider(client, &backupStorage)
-	if err != nil {
-		return "", err
-	}
+func storeInS3(provider *storage.S3StorageProvider, backupStorage influxdatav1alpha1.S3BackupStorage, name, srcFolder string) (string, error) {
+	storageKey := backupStorage.Folder + "/" + name
 
-	storageKey := backupStorage.Folder + "/" + srcFolder
-
-	localFolder := "/tmp/influxdb-backup/" + srcFolder
+	localFolder := srcFolder
 	files, err := ioutil.ReadDir(localFolder)
 	if err != nil {
 		return "", err
@@ -168,23 +189,3 @@ func storeInS3(client client.Client, backupStorage influxdatav1alpha1.S3BackupSt
 	return "s3://" + backupStorage.Bucket + "/" + storageKey, nil
 }
 
-func (r *ReconcileInfluxdbBackup) execInPod(ns string, cmdOpts []string) (string, error) {
-	cmd := strings.Join(cmdOpts, " ")
-
-	// TODO:
-	podName := "influxdb-0"
-	containerName := "influxdb"
-
-	output, stderr, err := ExecToPodThroughAPI(cmd, containerName, podName, ns, nil)
-
-	if len(stderr) != 0 {
-		log.Println("STDERR:", stderr)
-	}
-
-	if err != nil {
-		log.Printf("Error occured while `exec`ing to the Pod %q, namespace %q, command %q. Error: %+v\n", podName, ns, cmd, err)
-		return "", err
-	} else {
-		return output, nil
-	}
-}

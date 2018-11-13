@@ -22,10 +22,8 @@ type S3BackupStorage struct {
 	Region string `json:"region"`
 }
 
-// TODO: Are there built-in k8s structures we could use instead of defining our own?
-
 type SecretRef struct {
-	SecretKeyRef *KubernetesSecret `json:"secretKeyRef"`
+	ValueFrom ValueFrom `json:"valueFrom"`
 }
 
 type ValueFrom struct {

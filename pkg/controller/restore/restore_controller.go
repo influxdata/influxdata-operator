@@ -2,14 +2,12 @@ package restore
 
 import (
 	"context"
-	"log"
-	"strings"
-
+	"fmt"
 	influxdatav1alpha1 "github.com/influxdata-operator/pkg/apis/influxdata/v1alpha1"
-	"github.com/influxdata-operator/pkg/controller/backup"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -97,39 +95,22 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	log.Printf("Restore DB: %s, To DB: %s_restore, Backup key: %s", instance.Spec.Database, instance.Spec.Database, instance.Spec.Location)
 
-	output, err := r.execInPod(request.Namespace, []string{
-		"influxd",
-		"restore",
-		"-portable",
-		instance.Spec.Location,
-	})
+	err = fmt.Errorf("Not implemented yet")
+
+	//output, err := r.execInPod(request.Namespace, []string{
+	//	"influxd",
+	//	"restore",
+	//	"-portable",
+	//	instance.Spec.Location,
+	//})
+
 	if err != nil {
 		log.Printf("Error occured while restoring backup: %v", err)
 		return reconcile.Result{}, err
 	} else {
-		log.Printf("Restore Output: %v", output)
+		log.Printf("Restore Output: %v", err)
 	}
 
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileRestore) execInPod(ns string, cmdOpts []string) (string, error) {
-	cmd := strings.Join(cmdOpts, " ")
-
-	// TODO: Parameterize?
-	podName := "influxdb-0"
-	containerName := "influxdb"
-
-	output, stderr, err := backup.ExecToPodThroughAPI(cmd, containerName, podName,	ns, nil)
-
-	if len(stderr) != 0 {
-		log.Println("STDERR:", stderr)
-	}
-
-	if err != nil {
-		log.Printf("Error occured while `exec`ing to the Pod %q, namespace %q, command %q. Error: %+v\n", podName, ns, cmd, err)
-		return "", err
-	} else {
-		return output, nil
-	}
-}
