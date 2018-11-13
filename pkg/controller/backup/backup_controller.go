@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"github.com/influxdata-operator/pkg/storage"
 	"io/ioutil"
 	"log"
@@ -23,7 +24,8 @@ import (
 )
 
 const (
-	backupDir = "/var/lib/influxdb/backup"
+	backupDir    = "/var/lib/influxdb/backup"
+	fixedPodName = "influxdb-0"
 )
 
 func Add(mgr manager.Manager) error {
@@ -100,8 +102,8 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-	sourceFile := request.NamespacedName.String() + ":" + backupDir + "/"+ backupTime
-	destFile   := os.TempDir() + "/influxdb-backup/" + backupTime
+	sourceFile := fmt.Sprintf("%s/%s:%s/%s", request.Namespace, fixedPodName, backupDir, backupTime)
+	destFile := os.TempDir() + "/influxdb-backup/" + backupTime
 
 	if err := os.MkdirAll(destFile, os.ModePerm); err != nil {
 		log.Printf("Unable to make directories: %v\n", err)
@@ -131,7 +133,6 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 
 		log.Printf("Backups stored to %s\n", s3location)
 	}
-
 
 	log.Println("Done with reconcile!")
 	return reconcile.Result{}, nil
@@ -189,12 +190,13 @@ func storeInS3(provider *storage.S3StorageProvider, backupStorage influxdatav1al
 	for _, file := range files {
 		localFile := localFolder + "/" + file.Name()
 		f, err := os.Open(localFile)
+
 		if err != nil {
 			return "", err
 		}
 
-		log.Printf("Storing To S3: [%s] to [%s]\n", localFile, storageKey + "/" + file.Name())
-		err = provider.Store(storageKey + "/" + file.Name(), f)
+		log.Printf("Storing To S3: [%s] to [%s]\n", localFile, storageKey+"/"+file.Name())
+		err = provider.Store(storageKey+"/"+file.Name(), f)
 		if err != nil {
 			return "", err
 		}
@@ -202,4 +204,3 @@ func storeInS3(provider *storage.S3StorageProvider, backupStorage influxdatav1al
 
 	return "s3://" + backupStorage.Bucket + "/" + storageKey, nil
 }
-

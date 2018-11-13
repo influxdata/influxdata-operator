@@ -48,10 +48,8 @@ func (client *K8sClient) CopyFromK8s(src, dest string) error {
 	}
 
 	cmd := []string{"tar", "cf", "-", srcSpec.File}
-	fmt.Printf("Container name: %s\n", pod.Spec.Containers[0].Name)
 	output, stderr, err := client.Exec(srcSpec.PodNamespace, srcSpec.PodName, pod.Spec.Containers[0].Name, cmd, nil)
 
-	fmt.Printf("Done with exec! \n")
 	stderrOut := stderr.String()
 	if len(stderrOut) > 0 {
 		fmt.Println("STDERR: " + stderrOut)
@@ -91,9 +89,7 @@ func extractFileSpec(arg string) (fileSpec, error) {
 	return fileSpec{}, errFileSpecDoesntMatchFormat
 }
 
-
 func untarAll(reader io.Reader, destFile, prefix string) error {
-	fmt.Printf("In untarAll...")
 	entrySeq := -1
 
 	// TODO: use compression here?
@@ -176,4 +172,3 @@ func dirExists(path string) (bool, error) {
 func clean(fileName string) string {
 	return path.Clean(string(os.PathSeparator) + fileName)
 }
-

@@ -11,10 +11,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
-	"log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type K8sClient struct {
@@ -56,7 +54,6 @@ func NewK8sClient() (*K8sClient, error) {
 }
 
 func (client *K8sClient) Exec(namespace, podName, containerName string, command []string, stdin io.Reader) (*bytes.Buffer, *bytes.Buffer, error) {
-	log.Printf("Exec [%s], [%s], [%s], [%s], ", namespace, podName, containerName, strings.Join(command, " "))
 	clientset, config := client.ClientSet, client.Config
 
 	req := clientset.CoreV1().RESTClient().Post().

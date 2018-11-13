@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	s3credentials "github.com/aws/aws-sdk-go/aws/credentials"
@@ -16,23 +15,22 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type S3StorageProvider struct {
-	spec *v1alpha1.S3BackupStorage
-	session *session.Session
-	s3 *s3.S3
-	uploader *s3manager.Uploader
+	spec         *v1alpha1.S3BackupStorage
+	session      *session.Session
+	s3           *s3.S3
+	uploader     *s3manager.Uploader
 	k8snamespace string
 }
 
 // NewProvider creates a new S3 (compatible) storage provider.
 func NewS3StorageProvider(k8snamespace string, k8sClient client.Client, s3spec *v1alpha1.S3BackupStorage) (*S3StorageProvider, error) {
-	log.Println("Creating S3 Storage Provider")
-
 	accessKey, secretKey, err := getCredentials(k8snamespace, k8sClient, s3spec)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -41,7 +39,8 @@ func NewS3StorageProvider(k8snamespace string, k8sClient client.Client, s3spec *
 	sess := session.Must(session.NewSession(
 		aws.NewConfig().
 			WithCredentials(s3credentials.NewStaticCredentials(accessKey, secretKey, "")).
-			WithRegion(s3spec.Region)))
+			WithRegion(s3spec.Region).
+			WithDisableSSL(true)))
 
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -52,11 +51,11 @@ func NewS3StorageProvider(k8snamespace string, k8sClient client.Client, s3spec *
 	}
 
 	return &S3StorageProvider{
-		spec:           s3spec,
-		session:        sess,
-		s3:             s3.New(sess),
-		uploader:       s3manager.NewUploader(sess),
-		k8snamespace:   k8snamespace,
+		spec:         s3spec,
+		session:      sess,
+		s3:           s3.New(sess),
+		uploader:     s3manager.NewUploader(sess),
+		k8snamespace: k8snamespace,
 	}, nil
 }
 
@@ -94,6 +93,7 @@ func getCredentials(k8snamespace string, k8sClient client.Client, spec *v1alpha1
 	}
 
 	accessKey, err := getSecretValue(k8sClient, keyid.Namespace, keyid.Name, keyid.Key)
+
 	if err != nil {
 		log.Printf("Could not retrieve key id %s/%s/%s", keyid.Namespace,
 			keyid.Name, keyid.Key)
@@ -139,10 +139,5 @@ func getSecretValue(k8sClient client.Client, namespace string, secretName string
 		return "", fmt.Errorf("key %q not found in secret %q in namespace %q", secretKey, secret.ObjectMeta.Name, secret.ObjectMeta.Namespace)
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(string(value))
-	if err != nil {
-		return "", err
-	}
-
-	return string(decoded), nil
+	return strings.TrimSuffix(string(value), "\n"), nil
 }
