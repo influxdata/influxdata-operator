@@ -26,13 +26,14 @@ type S3StorageProvider struct {
 	session *session.Session
 	s3 *s3.S3
 	uploader *s3manager.Uploader
+	k8snamespace string
 }
 
 // NewProvider creates a new S3 (compatible) storage provider.
-func NewS3StorageProvider(k8sClient client.Client, s3spec *v1alpha1.S3BackupStorage) (*S3StorageProvider, error) {
+func NewS3StorageProvider(k8snamespace string, k8sClient client.Client, s3spec *v1alpha1.S3BackupStorage) (*S3StorageProvider, error) {
 	log.Println("Creating S3 Storage Provider")
 
-	accessKey, secretKey, err := getCredentials(k8sClient, s3spec)
+	accessKey, secretKey, err := getCredentials(k8snamespace, k8sClient, s3spec)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -55,12 +56,13 @@ func NewS3StorageProvider(k8sClient client.Client, s3spec *v1alpha1.S3BackupStor
 		session:        sess,
 		s3:             s3.New(sess),
 		uploader:       s3manager.NewUploader(sess),
+		k8snamespace:   k8snamespace,
 	}, nil
 }
 
 // Store the given data at the given key.
 func (p *S3StorageProvider) Store(key string, body io.ReadCloser) error {
-	glog.V(2).Infof("Storing backup (provider=\"S3\", bucket=%q, key=%q)", p.spec.Bucket, key)
+	glog.V(2).Infof("Storing file (provider=\"S3\", bucket=%q, key=%q)", p.spec.Bucket, key)
 
 	defer body.Close()
 
@@ -85,22 +87,28 @@ func (p *S3StorageProvider) Retrieve(key string) (io.ReadCloser, error) {
 }
 
 // getCredentials gets an accesskey and secretKey from the provided map.
-func getCredentials(k8sClient client.Client, spec *v1alpha1.S3BackupStorage) (string, string, error) {
-	accessKey, err := getSecretValue(k8sClient, spec.AwsKeyId.ValueFrom.SecretKeyRef.Namespace,
-		spec.AwsKeyId.ValueFrom.SecretKeyRef.Name, spec.AwsKeyId.ValueFrom.SecretKeyRef.Key)
+func getCredentials(k8snamespace string, k8sClient client.Client, spec *v1alpha1.S3BackupStorage) (string, string, error) {
+	keyid := spec.AwsKeyId.ValueFrom.SecretKeyRef
+	if keyid.Namespace == "" {
+		keyid.Namespace = k8snamespace
+	}
 
+	accessKey, err := getSecretValue(k8sClient, keyid.Namespace, keyid.Name, keyid.Key)
 	if err != nil {
-		log.Fatalf("Could not retrieve key id %s/%s/%s", spec.AwsKeyId.ValueFrom.SecretKeyRef.Namespace,
-			spec.AwsKeyId.ValueFrom.SecretKeyRef.Name, spec.AwsKeyId.ValueFrom.SecretKeyRef.Key)
+		log.Printf("Could not retrieve key id %s/%s/%s", keyid.Namespace,
+			keyid.Name, keyid.Key)
 		return "", "", err
 	}
 
-	secretKey, err := getSecretValue(k8sClient, spec.AwsSecretKey.ValueFrom.SecretKeyRef.Namespace,
-		spec.AwsSecretKey.ValueFrom.SecretKeyRef.Name, spec.AwsSecretKey.ValueFrom.SecretKeyRef.Key)
+	secretid := spec.AwsSecretKey.ValueFrom.SecretKeyRef
+	if secretid.Namespace == "" {
+		secretid.Namespace = k8snamespace
+	}
 
+	secretKey, err := getSecretValue(k8sClient, secretid.Namespace, secretid.Name, secretid.Key)
 	if err != nil {
-		log.Fatalf("Could not retrieve secret key %s/%s/%s", spec.AwsKeyId.ValueFrom.SecretKeyRef.Namespace,
-			spec.AwsKeyId.ValueFrom.SecretKeyRef.Name, spec.AwsKeyId.ValueFrom.SecretKeyRef.Key)
+		log.Printf("Could not retrieve secret key %s/%s/%s", secretid.Namespace,
+			secretid.Name, secretid.Key)
 		return "", "", err
 	}
 

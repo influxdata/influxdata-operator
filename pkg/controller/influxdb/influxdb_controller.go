@@ -103,18 +103,21 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
+	log.Printf("Reconciling Influxdb Service\n")
 	// Reconcile the cluster service
 	err = r.reconcileService(influxdb)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
+	log.Printf("Reconciling Influxdb PVC\n")
 	// Reconcile the cluster service
 	err = r.reconcilePVC(influxdb)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
+	log.Printf("Reconciling Influxdb StatefulSet\n")
 	// Check if the statefulset already exists, if not create a new one
 	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: influxdb.Name, Namespace: influxdb.Namespace}, found)
@@ -135,6 +138,7 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 
 	// Ensure the statefulset size is the same as the spec
+	log.Printf("Matching size in spec")
 	size := influxdb.Spec.Size
 	if *found.Spec.Replicas != size {
 		found.Spec.Replicas = &size
@@ -143,10 +147,13 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 			log.Printf("Failed to update Deployment: %v\n", err)
 			return reconcile.Result{}, err
 		}
+
+		log.Printf("Spec was updated, so request is getting re-queued")
 		// Spec updated - return and requeue
 		return reconcile.Result{Requeue: true}, nil
 	}
 
+	log.Printf("Matching size in spec\n")
 	// Update the Influxdb status with the pod names
 	// List the pods for this influxdb's statefulset
 	podList := &corev1.PodTemplateList{}
@@ -154,11 +161,13 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 	listOps := &client.ListOptions{Namespace: influxdb.Namespace, LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), listOps, podList)
 	if err != nil {
-		log.Printf("Failed to list pods: %v", err)
+		log.Printf("Failed to list pods: %v\n", err)
 		return reconcile.Result{}, err
 	}
 	podNames := getPodNames(podList.Items)
 
+
+	log.Printf("Updating status nodes\n")
 	// Update status.Nodes if needed
 	if !reflect.DeepEqual(podNames, influxdb.Status.Nodes) {
 		influxdb.Status.Nodes = podNames
@@ -169,6 +178,7 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 		}
 	}
 
+	log.Printf("Reconcile completed successfully")
 	return reconcile.Result{}, nil
 }
 
@@ -176,18 +186,20 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 func (r *ReconcileInfluxdb) reconcileService(cr *influxdatav1alpha1.Influxdb) error {
 	// Check if this Service already exists
 	found := &corev1.Service{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cr.Name, Namespace: cr.Namespace}, found)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cr.Name + "-svc", Namespace: cr.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		log.Printf("Creating a new Service %s/%s", cr.Namespace, cr.Name)
+		log.Printf("Creating a new Service %s/%s\n", cr.Namespace, cr.Name)
 		svc := newService(cr)
 
 		// Set InfluxDB instance as the owner and controller
 		if err = controllerutil.SetControllerReference(cr, svc, r.scheme); err != nil {
+			log.Printf("Error setting controller reference: %v\n", err)
 			return err
 		}
 
 		err = r.client.Create(context.TODO(), svc)
 		if err != nil {
+			log.Printf("Error creating client: %v\n", err)
 			return err
 		}
 
@@ -198,6 +210,7 @@ func (r *ReconcileInfluxdb) reconcileService(cr *influxdatav1alpha1.Influxdb) er
 			return err
 		}
 
+		log.Printf("Service %s/%s created successfully \n", cr.Namespace, cr.Name)
 		return nil
 	} else if err != nil {
 		return err
@@ -211,18 +224,20 @@ func (r *ReconcileInfluxdb) reconcileService(cr *influxdatav1alpha1.Influxdb) er
 func (r *ReconcileInfluxdb) reconcilePVC(cr *influxdatav1alpha1.Influxdb) error {
 	// Check if this Persitent Volume Claim already exists
 	found := &corev1.PersistentVolumeClaim{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cr.Name, Namespace: cr.Namespace}, found)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cr.Name + "-data-pvc", Namespace: cr.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		log.Printf("Creating a new Persistent Volume Claim %s/%s", cr.Namespace, cr.Name)
 		pvc := newPVCs(cr)
 
 		// Set InfluxDB instance as the owner and controller
 		if err = controllerutil.SetControllerReference(cr, pvc, r.scheme); err != nil {
+			log.Printf("%v", err)
 			return err
 		}
 
 		err = r.client.Create(context.TODO(), pvc)
 		if err != nil {
+			log.Printf("%v", err)
 			return err
 		}
 
@@ -230,11 +245,13 @@ func (r *ReconcileInfluxdb) reconcilePVC(cr *influxdatav1alpha1.Influxdb) error 
 		cr.Status.PersistentVolumeClaimName = pvc.Name
 		err = r.client.Update(context.TODO(), cr)
 		if err != nil {
+			log.Printf("%v", err)
 			return err
 		}
 
 		return nil
 	} else if err != nil {
+		log.Printf("%v", err)
 		return err
 	}
 

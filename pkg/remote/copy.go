@@ -25,27 +25,35 @@ var (
 )
 
 func (client *K8sClient) CopyFromK8s(src, dest string) error {
+	fmt.Printf("CopyFromK8s [%s] -> [%s]\n", src, dest)
 	srcSpec, err := extractFileSpec(src)
 	if err != nil {
 		return err
 	}
 
+	fmt.Printf("srcSpec [%s] -> [%s]\n", src, dest)
 	destSpec, err := extractFileSpec(dest)
 	if err != nil {
 		return err
 	}
 
+	fmt.Printf("Getting pods ...\n")
 	pod, err := client.ClientSet.CoreV1().Pods(srcSpec.PodNamespace).Get(srcSpec.PodName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
 
 	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 		return fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
 	}
 
 	cmd := []string{"tar", "cf", "-", srcSpec.File}
+	fmt.Printf("Container name: %s\n", pod.Spec.Containers[0].Name)
 	output, stderr, err := client.Exec(srcSpec.PodNamespace, srcSpec.PodName, pod.Spec.Containers[0].Name, cmd, nil)
 
+	fmt.Printf("Done with exec! \n")
 	stderrOut := stderr.String()
-	if len(stderrOut) <= 0 {
+	if len(stderrOut) > 0 {
 		fmt.Println("STDERR: " + stderrOut)
 	}
 
@@ -85,6 +93,7 @@ func extractFileSpec(arg string) (fileSpec, error) {
 
 
 func untarAll(reader io.Reader, destFile, prefix string) error {
+	fmt.Printf("In untarAll...")
 	entrySeq := -1
 
 	// TODO: use compression here?

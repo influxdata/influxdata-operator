@@ -16,8 +16,7 @@ spec:
         valueFrom:
           secretKeyRef:
             name: influxdb-backup
-            key: awsSecretAccesKey
-            # namespace: optional-namespace-name
-      bucket: influxdb-backup-restore
+            key: awsSecretAccessKey
+      bucket: dbarnes-influx-backups
       folder: /backup
       region: us-west-2

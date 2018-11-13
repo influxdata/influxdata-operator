@@ -1,1 +1,4 @@
 build/_output
+**/*DO_NOT_COMMIT*.*
+*.bak
+*~

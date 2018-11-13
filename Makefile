@@ -1,5 +1,5 @@
-orgname := aaltameemi
-operatorname := influxdb-backup-operator
+orgname := dustinbarnes
+operatorname := influxdb-operator
 version := $(shell date +'%Y%m%d%H%M%S')
 
 .PHONY: clean
@@ -11,7 +11,7 @@ build:
 	operator-sdk generate k8s
 	operator-sdk build $(orgname)/$(operatorname):v$(version)
 	docker push $(orgname)/$(operatorname):v$(version)
-	@sed -E -i 's/(.*?)$(operatorname):v.*?/\1$(operatorname):v$(version)/g' deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml
+	@sed -E -i.bak 's/(.*)$(operatorname):v.*/\1$(operatorname):v$(version)/g' deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml
 	@echo "Version should be $(version)"
 	@cat deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml | grep $(operatorname)
 
