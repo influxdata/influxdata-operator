@@ -4,7 +4,7 @@ metadata:
   name: influxdb-backup
 spec:
   databases:
-    - test
+    - testdb
   storage:
     s3:
       aws_key_id:
@@ -17,6 +17,6 @@ spec:
           secretKeyRef:
             name: influxdb-backup
             key: awsSecretAccessKey
-      bucket: dbarnes-influx-backups
+      bucket: influxdb-backup-restore 
       folder: backup
       region: us-west-2

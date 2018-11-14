@@ -26,6 +26,7 @@ The first step is to deploy a pvc backed by a persisten volume where the InfluxD
 The InfluxDB Operator supports the use of Persistent Volumes for each node in
 the InfluxDB cluster. If deploying on GKE clusters see [gcp_storage.yaml](deploy/gcp_storage.yaml).
 If deploying on EKS clusters see [aws_storage.yaml](deploy/aws_storage.yaml).
+If deploying on Local clusters see [storage.yaml](deploy/storage.yaml).
 The storage class created by each file supports resize of the persistent volume. 
 Note: Resize is only supperted on Kubernetes 1.11 and higher. [Persistent Volume Resize](https://kubernetes.io/blog/2018/07/12/resizing-persistent-volumes-using-kubernetes/)
 
@@ -80,10 +81,17 @@ kubectl delete -f deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml
 ```
 
 
-#### Create "on-demand" Backups
+#### Create "on-demand" Backups & Store it on S3 Bucket .
 
-First you need to change the database name field in the yaml file to contain the database name that you wants to backup .
-Ex : the yaml file below will backed up the testdb database .
+As the backup files stores in S3 bucket , you need first to exec the secret yaml file "deploy/crds/influxdata_v1alpha1_aws_creds.yaml" 
+
+Note : awsAccessKeyId & awsSecretAccessKey are <base64encoded>.
+
+
+in order to take backup for testdb , you need to specify the database name in yaml file "deploy/crds/influxdata_v1alpha1_backup_cr.yaml"
+
+
+The below yaml file will take backup for testdb and store it in s3://influxdb-backup-restore/backup/ in US-WEST-2 Region .
 
 ```
 apiVersion: influxdata.com/v1alpha1
@@ -91,8 +99,23 @@ kind: Backup
 metadata:
   name: influxdb-backup
 spec:
-  # Add fields here
-  database: testdb
+  databases:
+    - testdb
+  storage:
+    s3:
+      aws_key_id:
+        valueFrom:
+          secretKeyRef:
+            name: influxdb-backup
+            key: awsAccessKeyId
+      aws_secret_key:
+        valueFrom:
+          secretKeyRef:
+            name: influxdb-backup
+            key: awsSecretAccessKey
+      bucket: influxdb-backup-restore 
+      folder: backup
+      region: us-west-2
 ```
 
 
@@ -104,21 +127,22 @@ You can have a look at the logs for troubleshooting if needed.
 
 
 ```
-kubectl get pods -wl name=influxdata-operator
+ kubectl logs influxdata-operator-5c97ffc89d-vc7nk
 ```
 
-
-#### Use backups to restore a database
-
-
-First check the backup logs to get the backup directories that storing the backup data which can be used in yaml file for restore :
-
-```
-kubectl logs influxdata-operator-f8889bd86-527wn | grep "backup"
-```
+you'll see something like this in logs 2018/11/14 18:17:03 Backups stored to s3://influxdb-backup-restore/backup/20181114181703 
 
 
-Ex : the yaml file below will restore the database from /var/lib/influxdb/backup/20181109205352
+Note: 20181114181703 this is the directory name that stored the backup in S3 bucket . 
+
+
+#### Use backups to restore a database from S3 Bucket
+
+
+you need to specify the database that you wants to restore , also there is an option to restore database to new database name .
+
+
+Ex : the yaml file below will restore the database from s3://influxdb-backup-restore/backup/20181114181703. 
 
 
 ```
@@ -127,7 +151,25 @@ kind: Restore
 metadata:
   name: influxdb-restore
 spec:
-  location: /var/lib/influxdb/backup/20181109205352 
+  database: "testdb"
+  restoreTo: "testdb"         # optional. defaults to {database}_restore
+  backupId: "20181114181703"
+  storage:
+    s3:
+      aws_key_id:
+        valueFrom:
+          secretKeyRef:
+            name: influxdb-backup
+            key: awsAccessKeyId
+      aws_secret_key:
+        valueFrom:
+          secretKeyRef:
+            name: influxdb-backup
+            key: awsSecretAccessKey
+      bucket: influxdb-backup-restore 
+      folder: backup
+      region: us-west-2
+
 ```
 
 
@@ -140,7 +182,8 @@ You can have a look at the logs for troubleshooting if needed.
 
 
 ```
-kubectl get pods -wl name=influxdata-operator
+kubectl logs influxdata-operator-5c97ffc89d-vc7nk
 ```
+
 
 
