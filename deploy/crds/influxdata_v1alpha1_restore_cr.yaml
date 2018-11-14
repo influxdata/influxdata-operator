@@ -3,9 +3,10 @@ kind: Restore
 metadata:
   name: influxdb-restore
 spec:
-  databases:
-  - "test"
-  source:
+  database: "test"
+  restoreTo: "test_bak"         # optional. defaults to {database}_restore
+  backupId: "20181113084224"
+  storage:
     s3:
       aws_key_id:
         valueFrom:
@@ -16,9 +17,7 @@ spec:
         valueFrom:
           secretKeyRef:
             name: influxdb-backup
-            key: awsSecretAccesKey
-            # namespace: optional-namespace-name
-      bucket: influxdb-backup-restore
-      folder: /backup
+            key: awsSecretAccessKey
+      bucket: dbarnes-influx-backups
+      folder: backup
       region: us-west-2
-      backupId: 20181108202752

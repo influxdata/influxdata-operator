@@ -18,5 +18,5 @@ spec:
             name: influxdb-backup
             key: awsSecretAccessKey
       bucket: dbarnes-influx-backups
-      folder: /backup
+      folder: backup
       region: us-west-2

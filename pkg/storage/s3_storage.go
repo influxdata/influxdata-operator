@@ -61,7 +61,7 @@ func NewS3StorageProvider(k8snamespace string, k8sClient client.Client, s3spec *
 
 // Store the given data at the given key.
 func (p *S3StorageProvider) Store(key string, body io.ReadCloser) error {
-	glog.V(2).Infof("Storing file (provider=\"S3\", bucket=%q, key=%q)", p.spec.Bucket, key)
+	glog.V(2).Infof("Storing file (provider=\"S3\", bucket=%q, key=%q)\n", p.spec.Bucket, key)
 
 	defer body.Close()
 
@@ -74,15 +74,36 @@ func (p *S3StorageProvider) Store(key string, body io.ReadCloser) error {
 }
 
 // Retrieve the given key from S3 storage service.
-func (p *S3StorageProvider) Retrieve(key string) (io.ReadCloser, error) {
-	glog.V(2).Infof("Retrieving backup (provider=\"s3\", endpoint=%q, bucket=%q, key=%q)", p.spec.Bucket, key)
+func (p *S3StorageProvider) Retrieve(key string) (io.ReadCloser, *int64, error) {
+	glog.V(2).Infof("Retrieving backup (provider=\"s3\", bucket=%q, key=%q)", p.spec.Bucket, key)
 
 	obj, err := p.s3.GetObject(&s3.GetObjectInput{Bucket: &p.spec.Bucket, Key: &key})
 	if err != nil {
-		return nil, errors.Wrapf(err, "error retrieving backup (provider='S3', endpoint='%s', bucket='%s', key='%s')", p.spec.Bucket, key)
+		return nil, nil, errors.Wrapf(err, "error retrieving backup (provider='S3', bucket='%s', key='%s')", p.spec.Bucket, key)
 	}
 
-	return obj.Body, nil
+	// maybe get file length & other header info here?
+
+	return obj.Body, obj.ContentLength, nil
+}
+
+// Get list of objects in provided backup s3 bucket.
+func (p *S3StorageProvider) ListDirectory(key string) ([]*string, error) {
+	glog.V(2).Infof("Retrieving backup list (provider='S3', bucket=%q, key=%q)\n", p.spec.Bucket, key)
+	obj, err := p.s3.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: &p.spec.Bucket,
+		Delimiter: aws.String("/"), Prefix: aws.String(key + "/")})
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "error fetching file list (provider='S3', bucket='%s', key='%s')", p.spec.Bucket, key)
+	}
+
+	var results []*string
+
+	for _, item := range obj.Contents {
+		results = append(results, item.Key)
+	}
+
+	return results, nil
 }
 
 // getCredentials gets an accesskey and secretKey from the provided map.

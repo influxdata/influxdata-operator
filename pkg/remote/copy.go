@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type fileSpec struct {
@@ -25,19 +26,16 @@ var (
 )
 
 func (client *K8sClient) CopyFromK8s(src, dest string) error {
-	fmt.Printf("CopyFromK8s [%s] -> [%s]\n", src, dest)
 	srcSpec, err := extractFileSpec(src)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("srcSpec [%s] -> [%s]\n", src, dest)
 	destSpec, err := extractFileSpec(dest)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Getting pods ...\n")
 	pod, err := client.ClientSet.CoreV1().Pods(srcSpec.PodNamespace).Get(srcSpec.PodName, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -62,6 +60,62 @@ func (client *K8sClient) CopyFromK8s(src, dest string) error {
 	prefix := path.Clean(srcSpec.File)
 
 	return untarAll(output, destSpec.File, prefix)
+}
+
+func (client *K8sClient) CopyToK8s(dest string, size *int64, buffer *io.ReadCloser) error {
+	destSpec, err := extractFileSpec(dest)
+	if err != nil {
+		return err
+	}
+
+	pod, err := client.ClientSet.CoreV1().Pods(destSpec.PodNamespace).Get(destSpec.PodName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		return fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+	}
+
+	dir, _ := filepath.Split(destSpec.File)
+	command := []string{"mkdir", "-p", dir}
+	_, stderr, err := client.Exec(destSpec.PodNamespace, destSpec.PodName, pod.Spec.Containers[0].Name, command, nil)
+
+	if stderr != nil && stderr.Len() != 0 {
+		fmt.Printf("STDERR: %s\n", stderr.String())
+	}
+
+	if err != nil {
+		return err
+	}
+
+	reader, writer := io.Pipe()
+
+	// async kick off the tar creation, so that writer gets started before reader is read.
+	go func() {
+		defer writer.Close()
+		err := makeTar(buffer, size, destSpec, writer)
+		if err != nil {
+			fmt.Printf("Error creating tar stream: %v\n", err)
+		}
+	}()
+
+	cmd := []string{"tar", "-xf", "-"}
+
+	destDir := path.Dir(destSpec.File)
+	if len(destDir) > 0 {
+		cmd = append(cmd, "-C", destDir)
+	}
+
+	_, stderr, err = client.Exec(destSpec.PodNamespace, destSpec.PodName, pod.Spec.Containers[0].Name, cmd, reader)
+	if stderr != nil && stderr.Len() != 0 {
+		fmt.Printf("STDERR: %s\n", stderr.String())
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func extractFileSpec(arg string) (fileSpec, error) {
@@ -137,7 +191,7 @@ func untarAll(reader io.Reader, destFile, prefix string) error {
 			if err != nil {
 				return err
 			}
-			defer outFile.Close()
+
 			if _, err := io.Copy(outFile, tarReader); err != nil {
 				return err
 			}
@@ -152,6 +206,36 @@ func untarAll(reader io.Reader, destFile, prefix string) error {
 		errInfo := fmt.Sprintf("error: %s no such file or directory", prefix)
 		return errors.New(errInfo)
 	}
+	return nil
+}
+
+func makeTar(buffer *io.ReadCloser, size *int64, destPath fileSpec, writer io.Writer) error {
+	tarWriter := tar.NewWriter(writer)
+	defer tarWriter.Close()
+
+	_, filename := path.Split(destPath.File)
+	now := time.Now()
+	fakeStat := &tar.Header{
+		Name: filename,
+		Size: *size,
+		Mode: 0777,
+		ModTime: now,
+		AccessTime: now,
+		ChangeTime: now,
+		Typeflag: 0,
+	}
+
+	if err := tarWriter.WriteHeader(fakeStat); err != nil {
+		fmt.Printf("Error writing tar header: %+v", err)
+		return err
+	}
+
+	_, err := io.Copy(tarWriter, *buffer)
+	if err != nil {
+		fmt.Printf("Error during io.Copy: %v\n", err)
+		return err
+	}
+
 	return nil
 }
 

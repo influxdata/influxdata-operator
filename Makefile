@@ -4,7 +4,9 @@ version := $(shell date +'%Y%m%d%H%M%S')
 
 .PHONY: clean
 clean:
-	kubectl delete -f deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml
+	kubectl delete -f deploy/crds/influxdata_v1alpha1_backup_cr.yaml || true
+	kubectl delete -f deploy/crds/influxdata_v1alpha1_restore_cr.yaml || true
+	kubectl delete -f deploy/crds/influxdata_v1alpha1_influxdb_cr.yaml || true
 
 .PHONY: build
 build:

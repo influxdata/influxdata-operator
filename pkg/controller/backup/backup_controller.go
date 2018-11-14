@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	backupDir    = "/var/lib/influxdb/backup"
-	fixedPodName = "influxdb-0"
+	BackupDir    = "/var/lib/influxdb/backup"
+	FixedPodName = "influxdb-0"
 )
 
 func Add(mgr manager.Manager) error {
@@ -102,7 +102,7 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-	sourceFile := fmt.Sprintf("%s/%s:%s/%s", request.Namespace, fixedPodName, backupDir, backupTime)
+	sourceFile := fmt.Sprintf("%s/%s:%s/%s", request.Namespace, FixedPodName, BackupDir, backupTime)
 	destFile := os.TempDir() + "/influxdb-backup/" + backupTime
 
 	if err := os.MkdirAll(destFile, os.ModePerm); err != nil {
@@ -148,7 +148,7 @@ func (r *ReconcileInfluxdbBackup) runBackup(k8s *myremote.K8sClient, backup *inf
 		"-portable",
 		"-database",
 		backup.Spec.Databases[0],
-		backupDir + "/" + backupTime,
+		BackupDir + "/" + backupTime,
 	}
 
 	log.Printf("Command being run: %s", strings.Join(cmdOpts, " "))

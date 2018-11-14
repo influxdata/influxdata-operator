@@ -4,8 +4,12 @@ import (
 	"context"
 	"fmt"
 	influxdatav1alpha1 "github.com/influxdata-operator/pkg/apis/influxdata/v1alpha1"
+	"github.com/influxdata-operator/pkg/controller/backup"
+	myremote "github.com/influxdata-operator/pkg/remote"
+	storage2 "github.com/influxdata-operator/pkg/storage"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -14,6 +18,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"strings"
+)
+
+const (
+	RestoreDir    = "/var/lib/influxdb/restore"
 )
 
 /**
@@ -61,21 +70,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 var _ reconcile.Reconciler = &ReconcileRestore{}
 
-// ReconcileRestore reconciles a Restore object
 type ReconcileRestore struct {
-	// This client, initialized using mgr.Client() above, is a split client
-	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a Restore object and makes changes based on the state read
-// and what is in the Restore.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
-// Note:
-// The Controller will requeue the Request to be processed again if the returned error is non-nil or
-// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	log.Printf("Reconciling Restore %s/%s\n", request.Namespace, request.Name)
 
@@ -93,24 +92,91 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, err
 	}
 
-	log.Printf("Restore DB: %s, To DB: %s_restore, Backup key: %s", instance.Spec.Database, instance.Spec.Database, instance.Spec.Location)
-
-	err = fmt.Errorf("Not implemented yet")
-
-	//output, err := r.execInPod(request.Namespace, []string{
-	//	"influxd",
-	//	"restore",
-	//	"-portable",
-	//	instance.Spec.Location,
-	//})
-
-	if err != nil {
-		log.Printf("Error occured while restoring backup: %v", err)
-		return reconcile.Result{}, err
-	} else {
-		log.Printf("Restore Output: %v", err)
+	restoreToDb := instance.Spec.RestoreToDatabase
+	if len(restoreToDb) <= 0 {
+		restoreToDb = instance.Spec.Database + "_restore"
 	}
 
+	log.Printf("Restore DB: %s, To DB: %s, Backup key: %s", instance.Spec.Database, restoreToDb, instance.Spec.BackupId)
+
+	storage, err := storage2.NewS3StorageProvider(request.Namespace, r.client, &instance.Spec.Storage.S3)
+	if err != nil {
+		log.Printf("Error creating s3 storage provider: %v", err)
+		return reconcile.Result{}, err
+	}
+
+	k8s, err := myremote.NewK8sClient()
+	if err != nil {
+		log.Printf("Error occurred while getting K8s Client: %+v", err)
+		return reconcile.Result{}, err
+	}
+
+	remoteFolder := instance.Spec.Storage.S3.Folder + "/" + instance.Spec.BackupId
+
+	keys, err := storage.ListDirectory(remoteFolder)
+	if err != nil {
+		log.Printf("Error while listing directory: %v\n", err)
+		return reconcile.Result{}, err
+	}
+
+	for _, key := range keys {
+		// need to strip off prefix, just want name.
+		localFileName := strings.TrimPrefix(*key, remoteFolder)
+
+		body, size, err := storage.Retrieve(*key)
+		if err != nil {
+			log.Printf("Unable to fetch key %s: %v", *key, err)
+			return reconcile.Result{}, err
+		}
+
+		// Send directly to k8s pod
+		destination := fmt.Sprintf("%s/%s:%s/%s%s", request.Namespace, backup.FixedPodName,
+			RestoreDir, instance.Spec.BackupId, localFileName)
+
+		err = k8s.CopyToK8s(destination, size, &body)
+		if err != nil {
+			fmt.Printf("Error while copying to k8s: %+v\n", err)
+			body.Close()
+			return reconcile.Result{}, err
+		}
+
+		body.Close()
+	}
+	fmt.Println("Copy from S3 succeeded")
+
+	// Finally, we run the restore.
+	pod, err := k8s.ClientSet.CoreV1().Pods(request.Namespace).Get(backup.FixedPodName, metav1.GetOptions{})
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		return reconcile.Result{}, fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+	}
+
+	command := []string{
+		"influxd",
+		"restore",
+		"-portable",
+		"-db",
+		instance.Spec.Database,
+		"-newdb",
+		restoreToDb,
+		fmt.Sprintf("%s/%s", RestoreDir, instance.Spec.BackupId),
+	}
+
+	stdout, stderr, err := k8s.Exec(request.Namespace, backup.FixedPodName, pod.Spec.Containers[0].Name, command, nil)
+
+	if stderr != nil && stderr.Len() != 0 {
+		fmt.Printf("STDERR: %s\n", stderr.String())
+	}
+
+	if err != nil {
+		fmt.Printf("Restore error: %v", err)
+		return reconcile.Result{}, err
+	}
+
+	fmt.Printf("Restore output: %v\n", stdout)
 	return reconcile.Result{}, nil
 }
 

@@ -4,5 +4,5 @@ metadata:
     name: influxdb-backup
 type: Opaque
 data:
-    awsAccessKeyId: <base64encoded>
-    awsSecretAccesKey: <base64encoded>
+    awsAccessKeyId: QUtJQUpFMlJTWEtLT0hYT0hISUEK
+    awsSecretAccessKey: TmQwVThibFJISmdab0l6eE5CVis3c1dUY1Rxc0dhRXRlNUNWbnplOAo=

@@ -11,7 +11,9 @@ import (
 // RestoreSpec defines the desired config of Restore
 type RestoreSpec struct {
 	Database string `json:"database"`
-	Location string `json:"location"`
+	RestoreToDatabase string `json:"restoreTo"`
+	BackupId string `json:"backupId"`
+	Storage BackupStorage `json:"storage"`
 }
 
 // RestoreStatus defines the observed state of Restore
