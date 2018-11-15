@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	influxdatav1alpha1 "github.com/influxdata-operator/pkg/apis/influxdata/v1alpha1"
-	"github.com/influxdata-operator/pkg/controller/backup"
 	myremote "github.com/influxdata-operator/pkg/remote"
 	storage2 "github.com/influxdata-operator/pkg/storage"
 	corev1 "k8s.io/api/core/v1"
@@ -130,7 +129,7 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 
 		// Send directly to k8s pod
-		destination := fmt.Sprintf("%s/%s:%s/%s%s", request.Namespace, backup.FixedPodName,
+		destination := fmt.Sprintf("%s/%s:%s/%s%s", request.Namespace, instance.Spec.PodName,
 			RestoreDir, instance.Spec.BackupId, localFileName)
 
 		err = k8s.CopyToK8s(destination, size, &body)
@@ -145,7 +144,7 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 	fmt.Println("Copy from S3 succeeded")
 
 	// Finally, we run the restore.
-	pod, err := k8s.ClientSet.CoreV1().Pods(request.Namespace).Get(backup.FixedPodName, metav1.GetOptions{})
+	pod, err := k8s.ClientSet.CoreV1().Pods(request.Namespace).Get(instance.Spec.PodName, metav1.GetOptions{})
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -165,7 +164,9 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 		fmt.Sprintf("%s/%s", RestoreDir, instance.Spec.BackupId),
 	}
 
-	stdout, stderr, err := k8s.Exec(request.Namespace, backup.FixedPodName, pod.Spec.Containers[0].Name, command, nil)
+       log.Printf(strings.Join(command, " "))
+
+	stdout, stderr, err := k8s.Exec(request.Namespace, instance.Spec.PodName, instance.Spec.ContainerName, command, nil)
 
 	if stderr != nil && stderr.Len() != 0 {
 		fmt.Printf("STDERR: %s\n", stderr.String())
@@ -179,4 +180,3 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 	fmt.Printf("Restore output: %v\n", stdout)
 	return reconcile.Result{}, nil
 }
-

@@ -14,6 +14,8 @@ type RestoreSpec struct {
 	RestoreToDatabase string `json:"restoreTo"`
 	BackupId string `json:"backupId"`
 	Storage BackupStorage `json:"storage"`
+        PodName string `json:"podname"`
+        ContainerName string `json:"containername"`
 }
 
 // RestoreStatus defines the observed state of Restore

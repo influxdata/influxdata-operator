@@ -8,6 +8,8 @@ import (
 type BackupSpec struct {
 	Databases []string `json:"databases"`
 	Storage BackupStorage `json:"storage"`
+        PodName string `json:"podname"`
+        ContainerName string `json:"containername"` 
 }
 
 type BackupStorage struct {

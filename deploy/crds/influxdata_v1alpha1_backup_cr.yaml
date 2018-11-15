@@ -5,6 +5,8 @@ metadata:
 spec:
   databases:
     - testdb
+  podname: "influxdb-0"
+  containername: "influxdb"
   storage:
     s3:
       aws_key_id:
