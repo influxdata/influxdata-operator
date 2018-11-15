@@ -46,7 +46,7 @@ kubectl apply -f deploy/gcp-storageclass.yaml
 
 #### Deploy InfluxDB Operator & Create InfluxDB
 
-The `deploy` directory contains the manifests needed to properly install the
+The `bundle.yaml` file contains the manifests needed to properly install the
 Operator and InfluxDB.
 
 ```
