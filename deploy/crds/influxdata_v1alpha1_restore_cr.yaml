@@ -5,9 +5,10 @@ metadata:
 spec:
   database: "testdb"
   restoreTo: "testdb"         # optional. defaults to {database}_restore
-  backupId: "20181115210038"
+  backupId: "20181115224308"
   podname: "influxdb-0"
   containername: "influxdb"
+  #Retention:
   storage:
     s3:
       aws_key_id:

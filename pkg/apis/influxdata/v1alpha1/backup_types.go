@@ -10,6 +10,11 @@ type BackupSpec struct {
 	Storage BackupStorage `json:"storage"`
         PodName string `json:"podname"`
         ContainerName string `json:"containername"` 
+        Retention string `json:"retention"`
+        Shard string `json:"shard"`
+        Start string `json:"start"`
+        End string `json:"end"`
+        Since string `json:"since"`
 }
 
 type BackupStorage struct {

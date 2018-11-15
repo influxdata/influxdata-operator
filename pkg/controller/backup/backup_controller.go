@@ -147,6 +147,16 @@ func (r *ReconcileInfluxdbBackup) runBackup(k8s *myremote.K8sClient, backup *inf
 		"-portable",
 		"-database",
 		backup.Spec.Databases[0],
+                "-retention",
+                backup.Spec.Retention,
+                "-shard",
+                backup.Spec.Shard,
+                "-start",
+                backup.Spec.Start,
+                "-end",
+                backup.Spec.End,
+                "-since",
+                backup.Spec.Since,
 		BackupDir + "/" + backupTime,
 	}
 
