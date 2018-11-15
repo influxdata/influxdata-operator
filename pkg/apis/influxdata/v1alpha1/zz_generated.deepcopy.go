@@ -264,9 +264,9 @@ func (in *KubernetesSecret) DeepCopy() *KubernetesSecret {
 func (in *PodPolicy) DeepCopyInto(out *PodPolicy) {
 	*out = *in
 	in.Resources.DeepCopyInto(&out.Resources)
-	if in.PersistentVolumeClaimSpec != nil {
-		in, out := &in.PersistentVolumeClaimSpec, &out.PersistentVolumeClaimSpec
-		*out = new(v1.PersistentVolumeClaimSpec)
+	if in.PersistentVolumeClaim != nil {
+		in, out := &in.PersistentVolumeClaim, &out.PersistentVolumeClaim
+		*out = new(v1.PersistentVolumeClaim)
 		(*in).DeepCopyInto(*out)
 	}
 	return

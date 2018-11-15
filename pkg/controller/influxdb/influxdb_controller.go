@@ -110,7 +110,7 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-	log.Printf("Reconciling Influxdb PVC\n")
+	log.Printf("Reconciling Influxdb Persistent Volume Claim\n")
 	// Reconcile the cluster service
 	err = r.reconcilePVC(influxdb)
 	if err != nil {
@@ -166,7 +166,6 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 	podNames := getPodNames(podList.Items)
 
-
 	log.Printf("Updating status nodes\n")
 	// Update status.Nodes if needed
 	if !reflect.DeepEqual(podNames, influxdb.Status.Nodes) {
@@ -188,7 +187,7 @@ func (r *ReconcileInfluxdb) reconcileService(cr *influxdatav1alpha1.Influxdb) er
 	found := &corev1.Service{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cr.Name + "-svc", Namespace: cr.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		log.Printf("Creating a new Service %s/%s\n", cr.Namespace, cr.Name)
+		log.Printf("Creating a new Service %s/%s\n", cr.Namespace, cr.Name+"-svc")
 		svc := newService(cr)
 
 		// Set InfluxDB instance as the owner and controller
@@ -210,7 +209,7 @@ func (r *ReconcileInfluxdb) reconcileService(cr *influxdatav1alpha1.Influxdb) er
 			return err
 		}
 
-		log.Printf("Service %s/%s created successfully \n", cr.Namespace, cr.Name)
+		log.Printf("Service %s/%s created successfully \n", cr.Namespace, cr.Name+"-svc")
 		return nil
 	} else if err != nil {
 		return err
@@ -220,13 +219,13 @@ func (r *ReconcileInfluxdb) reconcileService(cr *influxdatav1alpha1.Influxdb) er
 	return nil
 }
 
-// reconcileService ensures the Persistent Volume Claim is created.
+// reconcilePVC ensures the Persistent Volume Claim is created.
 func (r *ReconcileInfluxdb) reconcilePVC(cr *influxdatav1alpha1.Influxdb) error {
 	// Check if this Persitent Volume Claim already exists
 	found := &corev1.PersistentVolumeClaim{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cr.Name + "-data-pvc", Namespace: cr.Namespace}, found)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: cr.Spec.Pod.PersistentVolumeClaim.Name, Namespace: cr.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		log.Printf("Creating a new Persistent Volume Claim %s/%s", cr.Namespace, cr.Name)
+		log.Printf("Creating a new Persistent Volume Claim %s/%s", cr.Namespace, cr.Spec.Pod.PersistentVolumeClaim.Name)
 		pvc := newPVCs(cr)
 
 		// Set InfluxDB instance as the owner and controller
@@ -281,52 +280,15 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: ls,
+					Labels:    ls,
+					Namespace: m.Namespace,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Image:           m.Spec.BaseImage,
 						Name:            "influxdb",
 						ImagePullPolicy: m.Spec.ImagePullPolicy,
-						Ports: []corev1.ContainerPort{
-							{
-								Name:          "api",
-								HostPort:      8086,
-								ContainerPort: 8086,
-								Protocol:      corev1.ProtocolTCP,
-							},
-							{
-								Name:          "graphite",
-								HostPort:      2003,
-								ContainerPort: 2003,
-								Protocol:      corev1.ProtocolTCP,
-							},
-							{
-								Name:          "collectd",
-								HostPort:      25826,
-								ContainerPort: 25826,
-								Protocol:      corev1.ProtocolTCP,
-							},
-							{
-								Name:          "udp",
-								HostPort:      8089,
-								ContainerPort: 8089,
-								Protocol:      corev1.ProtocolTCP,
-							},
-							{
-								Name:          "opentsdb",
-								HostPort:      4242,
-								ContainerPort: 4242,
-								Protocol:      corev1.ProtocolTCP,
-							},
-							{
-								Name:          "backup-restore",
-								HostPort:      8088,
-								ContainerPort: 8088,
-								Protocol:      corev1.ProtocolTCP,
-							},
-						},
-						Resources: newContainerResources(m),
+						Resources:       newContainerResources(m),
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "influxdb-config",
@@ -354,7 +316,7 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 							Name: "influxdb-data",
 							VolumeSource: corev1.VolumeSource{
 								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: "influxdb-data-pvc",
+									ClaimName: m.Spec.Pod.PersistentVolumeClaim.Name,
 								},
 							},
 						},
@@ -401,8 +363,8 @@ func newService(m *influxdatav1alpha1.Influxdb) *corev1.Service {
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "influxdb-svc",
-			Namespace: m.ObjectMeta.Namespace,
+			Name:      m.Name + "-svc",
+			Namespace: m.Namespace,
 			Labels:    ls,
 		},
 		Spec: corev1.ServiceSpec{
@@ -423,11 +385,11 @@ func newPVCs(cr *influxdatav1alpha1.Influxdb) *corev1.PersistentVolumeClaim {
 			Kind:       "PersistentVolumeClaim",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "influxdb-data-pvc",
-			Namespace: cr.ObjectMeta.Namespace,
+			Name:      cr.Spec.Pod.PersistentVolumeClaim.Name,
+			Namespace: cr.Namespace,
 			Labels:    ls,
 		},
-		Spec: *cr.Spec.Pod.PersistentVolumeClaimSpec,
+		Spec: cr.Spec.Pod.PersistentVolumeClaim.Spec,
 	}
 }
 

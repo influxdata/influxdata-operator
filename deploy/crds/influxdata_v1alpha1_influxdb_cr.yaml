@@ -58,7 +58,7 @@ spec:
       containers:
         - name: influxdata-operator
           # Replace this with the built image name
-          image: aaltameemi/influxdb-operator:v3.0.0.0 
+          image: mbelot/influxdata-operator:v3.5
           ports:
           - containerPort: 60000
             name: metrics
@@ -271,9 +271,12 @@ spec:
       requests:
         cpu: 0.1
         memory: 256Mi
-    persistentVolumeClaimSpec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: standard-resize
-      resources:
-        requests:
-          storage: 8Gi
+    persistentVolumeClaim:
+      metadata:
+        name: "influxdb-data-pvc"
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: standard-resize
+        resources:
+          requests:
+            storage: 8Gi

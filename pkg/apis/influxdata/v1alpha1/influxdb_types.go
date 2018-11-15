@@ -12,9 +12,8 @@ import (
 type PodPolicy struct {
 	// Resources is the resource requirements for the containers.
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
-	// PersistentVolumeClaimSpec is the spec to describe PVC for the influxdb container
-	// This field is optional. If no PVC spec, influxdb container will use emptyDir as volume
-	PersistentVolumeClaimSpec *corev1.PersistentVolumeClaimSpec `json:"persistentVolumeClaimSpec,omitempty"`
+	// PersistentVolumeClaim is the claim to describe PVC for the influxdb container
+	PersistentVolumeClaim *corev1.PersistentVolumeClaim `json:"persistentVolumeClaim,omitempty"`
 }
 
 // InfluxdbSpec defines the desired state of Influxdb
