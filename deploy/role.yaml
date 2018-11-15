@@ -14,6 +14,15 @@ rules:
   - events
   - configmaps
   - secrets
+  - pods/attach
+  - pods/exec
+  - namespaces
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - '*'
   verbs:
   - '*'
 - apiGroups:
@@ -29,5 +38,7 @@ rules:
   - influxdata.com
   resources:
   - '*'
+  - backups
+  - restores
   verbs:
   - '*'

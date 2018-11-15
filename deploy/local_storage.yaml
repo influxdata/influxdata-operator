@@ -1,19 +1,20 @@
-kind: StorageClass
 apiVersion: storage.k8s.io/v1
+kind: StorageClass
 metadata:
   name: standard-resize
-provisioner: docker.io/hostpath
-reclaimPolicy: Retain
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: Immediate 
 ---
-kind: PersistentVolumeClaim
 apiVersion: v1
+kind: PersistentVolume
 metadata:
-  name: influxdb-data-pvc
+  name: influxdb-data-pv
 spec:
+  capacity:
+    storage: 8Gi
   accessModes:
   - ReadWriteOnce
-  volumeMode: Filesystem
-  resources:
-    requests:
-      storage: 2Gi
-  storageClassName: standard-resize
+  persistentVolumeReclaimPolicy: Delete 
+  storageClassName: local 
+  local:
+    path: /var/lib/influxdb/ 
