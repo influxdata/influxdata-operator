@@ -26,13 +26,13 @@ The first step is to deploy a pvc backed by a persisten volume where the InfluxD
 The InfluxDB Operator supports the use of Persistent Volumes for each node in
 the InfluxDB cluster.
 
-If deploying on GKE clusters see [gcp_storage.yaml](deploy/gcp_storageclass.yaml).
+If deploying on GKE clusters see [gcp_storageclass.yaml](deploy/gcp_storageclass.yaml).
 
 
-If deploying on EKS clusters see [aws_storage.yaml](deploy/aws_storageclass.yaml).
+If deploying on EKS clusters see [aws_storageclass.yaml](deploy/aws_storageclass.yaml).
 
 
-If deploying on Local clusters see [storage.yaml](deploy/local_storage.yaml).
+If deploying on Local clusters see [local_storage.yaml](deploy/local_storage.yaml).
 
 
 The storage class created by each file supports resize of the persistent volume. 
@@ -40,9 +40,11 @@ The storage class created by each file supports resize of the persistent volume.
 
 Note: Resize is only supperted on Kubernetes 1.11 and higher. [Persistent Volume Resize](https://kubernetes.io/blog/2018/07/12/resizing-persistent-volumes-using-kubernetes/)
 
+
 ```
 kubectl apply -f deploy/gcp-storageclass.yaml
 ```
+
 
 #### Deploy InfluxDB Operator & Create InfluxDB
 
