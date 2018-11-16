@@ -25,7 +25,6 @@ import (
 
 const (
 	BackupDir    = "/var/lib/influxdb/backup"
-	FixedPodName = "influxdb-0"
 )
 
 func Add(mgr manager.Manager) error {
@@ -70,7 +69,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 var _ reconcile.Reconciler = &ReconcileInfluxdbBackup{}
 
-// This gets called when a Backup resource is created... I think.
+// This gets called when a Backup resource is created...
 func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	log.Printf("Starting Influxdb Backup\n")
 
@@ -89,7 +88,7 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		log.Printf("Failed to get Influxdb Backup: %v", err)
 		return reconcile.Result{}, err
 	}
-
+        
 	k8s, err := myremote.NewK8sClient()
 	if err != nil {
 		log.Printf("Error occurred while getting K8s Client: %+v", err)
@@ -102,7 +101,7 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-	sourceFile := fmt.Sprintf("%s/%s:%s/%s", request.Namespace, FixedPodName, BackupDir, backupTime)
+	sourceFile := fmt.Sprintf("%s/%s:%s/%s", request.Namespace, backup.Spec.PodName, BackupDir, backupTime)
 	destFile := os.TempDir() + "/influxdb-backup/" + backupTime
 
 	if err := os.MkdirAll(destFile, os.ModePerm); err != nil {
@@ -148,16 +147,25 @@ func (r *ReconcileInfluxdbBackup) runBackup(k8s *myremote.K8sClient, backup *inf
 		"-portable",
 		"-database",
 		backup.Spec.Databases[0],
+                "-retention",
+                backup.Spec.Retention,
+                "-shard",
+                backup.Spec.Shard,
+                "-start",
+                backup.Spec.Start,
+                "-end",
+                backup.Spec.End,
+                "-since",
+                backup.Spec.Since,
 		BackupDir + "/" + backupTime,
 	}
 
 	log.Printf("Command being run: %s", strings.Join(cmdOpts, " "))
 
 	// TODO: Parameterize? Get from config?
-	podName := "influxdb-0"
-	containerName := "influxdb"
-
-	outputBytes, stderrBytes, err := k8s.Exec(backup.Namespace, podName, containerName, cmdOpts, nil)
+	podName := backup.Spec.PodName
+        container := backup.Spec.ContainerName
+	outputBytes, stderrBytes, err := k8s.Exec(backup.Namespace, podName, container,cmdOpts, nil)
 
 	stderr := stderrBytes.String()
 	output := outputBytes.String()
