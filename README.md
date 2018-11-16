@@ -82,15 +82,15 @@ kubectl delete -f bundle.yaml
 
 #### Create "on-demand" Backups & Store it in S3 Bucket .
 
-As the backup files stores in S3 bucket , you need first to exec the secret yaml file "deploy/crds/influxdata_v1alpha1_aws_creds.yaml" 
+As the backup files stores in S3 bucket , you need first need to create a Kubernetes Secret for sutenticating to AWS. Deploy the secret custom resource file [aws_creds.yaml](deploy/crds/influxdata_v1alpha1_aws_creds.yaml).
 
 Note : awsAccessKeyId & awsSecretAccessKey are <base64encoded>.
 
 
-in order to take backup for testdb , you need to specify the database name in yaml file "deploy/crds/influxdata_v1alpha1_backup_cr.yaml"
+in order to take a backup for database testdb , you need to specify the database name in Backup CR file [backup_cr.yaml](deploy/crds/influxdata_v1alpha1_backup_cr.yaml)
 
 
-The below yaml file will take backup for testdb and store it in s3://influxdb-backup-restore/backup/ in US-WEST-2 Region .
+The below yaml file will take a backup for testdb and store it in `s3://influxdb-backup-restore/backup/` `in US-WEST-2 Region`.
 
 ```
 apiVersion: influxdata.com/v1alpha1
