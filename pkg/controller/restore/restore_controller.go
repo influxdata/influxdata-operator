@@ -161,8 +161,8 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 		instance.Spec.Database,
 		"-newdb",
 		restoreToDb,
-                "-retention",
-                instance.Spec.Retention,
+                "-rp",
+                instance.Spec.Rp,
 		fmt.Sprintf("%s/%s", RestoreDir, instance.Spec.BackupId),
 	}
 

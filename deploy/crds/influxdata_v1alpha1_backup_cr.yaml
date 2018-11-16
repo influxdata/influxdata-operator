@@ -7,11 +7,11 @@ spec:
     - testdb
   podname: "influxdb-0"
   containername: "influxdb"
-  #Shard:
-  #Retention:
-  #Start:
-  #End:
-  #Since:
+  #shard:
+  #retention:
+  #start:
+  #end:
+  #since:
   storage:
     s3:
       aws_key_id:

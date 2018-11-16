@@ -4,11 +4,11 @@ metadata:
   name: influxdb-restore
 spec:
   database: "testdb"
-  restoreTo: "testdb"         # optional. defaults to {database}_restore
-  backupId: "20181115224308"
+  restoreTo: "testdb2"
+  backupId: "20181116184626"
   podname: "influxdb-0"
   containername: "influxdb"
-  #Retention:
+  #rp:
   storage:
     s3:
       aws_key_id:
