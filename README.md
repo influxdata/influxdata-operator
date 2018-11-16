@@ -26,13 +26,13 @@ The first step is to deploy a pvc backed by a persisten volume where the InfluxD
 The InfluxDB Operator supports the use of Persistent Volumes for each node in
 the InfluxDB cluster.
 
- If deploying on GKE clusters see [gcp_storage.yaml](deploy/gcp_storage.yaml).
+If deploying on GKE clusters see [gcp_storage.yaml](deploy/gcp_storage.yaml).
 
 
 If deploying on EKS clusters see [aws_storage.yaml](deploy/aws_storage.yaml).
 
 
-If deploying on Local clusters see [storage.yaml](deploy/storage.yaml).
+If deploying on Local Workstation  see [local_storage.yaml](deploy/local_storage.yaml).
 
 
 The storage class created by each file supports resize of the persistent volume. 
@@ -111,6 +111,13 @@ metadata:
 spec:
   databases:
     - testdb
+  podname: "influxdb-0"
+  containername: "influxdb"
+  #shard:
+  #retention:
+  #start:
+  #end:
+  #since:
   storage:
     s3:
       aws_key_id:
@@ -126,6 +133,7 @@ spec:
       bucket: influxdb-backup-restore 
       folder: backup
       region: us-west-2
+
 ```
 
 
@@ -149,7 +157,7 @@ Note: 20181114181703 this is the directory name that stored the backup in S3 buc
 #### Use backups to restore a database from S3 Bucket
 
 
-you need to specify the database that you wants to restore , also there is an option to restore database to new database name .
+You need to specify the database that you wants to restore , also there is an option to restore database to new database name .
 
 
 Ex : the yaml file below will restore the database from s3://influxdb-backup-restore/backup/20181114181703. 
@@ -162,8 +170,11 @@ metadata:
   name: influxdb-restore
 spec:
   database: "testdb"
-  restoreTo: "testdb"         # optional. defaults to {database}_restore
-  backupId: "20181114181703"
+  restoreTo: "testdb2"
+  backupId: "20181116184626"
+  podname: "influxdb-0"
+  containername: "influxdb"
+  #rp:
   storage:
     s3:
       aws_key_id:
