@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	RestoreDir    = "/var/lib/influxdb/restore"
+	RestoreDir = "/var/lib/influxdb/restore"
 )
 
 /**
@@ -94,7 +94,7 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	restoreToDb := instance.Spec.RestoreToDatabase
 	if len(restoreToDb) <= 0 {
-		restoreToDb = instance.Spec.Database + "_restore"
+		restoreToDb = instance.Spec.Database
 	}
 
 	log.Printf("Restore DB: %s, To DB: %s, Backup key: %s", instance.Spec.Database, restoreToDb, instance.Spec.BackupId)
@@ -179,4 +179,3 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 	fmt.Printf("Restore output: %v\n", stdout)
 	return reconcile.Result{}, nil
 }
-

@@ -4,7 +4,7 @@ metadata:
   name: influxdb-restore
 spec:
   database: "testdb"
-  restoreTo: "testdb"         # optional. defaults to {database}_restore
+  restoreTo: "testdb"         # optional. defaults to {database}
   backupId: "20181114181703"
   storage:
     s3:
