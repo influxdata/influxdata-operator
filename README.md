@@ -82,7 +82,7 @@ kubectl delete -f bundle.yaml
 
 #### Create "on-demand" Backups & Store it in S3 Bucket .
 
-As the backup files stores in S3 bucket , you need first need to create a Kubernetes Secret for sutenticating to AWS. Deploy the secret custom resource file [aws_creds.yaml](deploy/crds/influxdata_v1alpha1_aws_creds.yaml).
+The backup CRD stores the backed up files to an S3 bucket. You first need to create a Kubernetes Secret for authenticating to AWS. Deploy the secret custom resource file [aws_creds.yaml](deploy/crds/influxdata_v1alpha1_aws_creds.yaml).
 
 Note : awsAccessKeyId & awsSecretAccessKey are <base64encoded>.
 
