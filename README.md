@@ -86,8 +86,23 @@ The backup CRD stores the backed up files to an S3 bucket. You first need to cre
 
 Note : awsAccessKeyId & awsSecretAccessKey are <base64encoded>.
 
+```
+apiVersion: v1
+kind: Secret
+metadata:
+    name: influxdb-backup
+type: Opaque
+data:
+    awsAccessKeyId: <base64encoded> 
+    awsSecretAccessKey: <base64encoded>
+```
 
-in order to take a backup for database testdb , you need to specify the database name in Backup CR file [backup_cr.yaml](deploy/crds/influxdata_v1alpha1_backup_cr.yaml)
+```
+kubectl create -f deploy/crds/influxdata_v1alpha1_aws_creds.yaml
+```
+
+
+In order to take a backup for database testdb , you need to specify the database name in Backup CR file [backup_cr.yaml](deploy/crds/influxdata_v1alpha1_backup_cr.yaml)
 
 
 The below yaml file will take a backup for testdb and store it in `s3://influxdb-backup-restore/backup/` `in US-WEST-2 Region`.
