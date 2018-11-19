@@ -4,14 +4,13 @@ metadata:
   name: influxdb-backup
 spec:
   databases:
-    - testdb
   podname: "influxdb-0"
   containername: "influxdb"
-  #shard:
-  #retention:
-  #start:
-  #end:
-  #since:
+  shard:
+  retention:
+  start:
+  end:
+  since:
   storage:
     s3:
       aws_key_id:

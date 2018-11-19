@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	BackupDir    = "/var/lib/influxdb/backup"
+	BackupDir = "/var/lib/influxdb/backup"
 )
 
 func Add(mgr manager.Manager) error {
@@ -88,7 +88,7 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		log.Printf("Failed to get Influxdb Backup: %v", err)
 		return reconcile.Result{}, err
 	}
-        
+
 	k8s, err := myremote.NewK8sClient()
 	if err != nil {
 		log.Printf("Error occurred while getting K8s Client: %+v", err)
@@ -145,27 +145,40 @@ func (r *ReconcileInfluxdbBackup) runBackup(k8s *myremote.K8sClient, backup *inf
 		"influxd",
 		"backup",
 		"-portable",
-		"-database",
-		backup.Spec.Databases[0],
-                "-retention",
-                backup.Spec.Retention,
-                "-shard",
-                backup.Spec.Shard,
-                "-start",
-                backup.Spec.Start,
-                "-end",
-                backup.Spec.End,
-                "-since",
-                backup.Spec.Since,
-		BackupDir + "/" + backupTime,
 	}
+
+	if backup.Spec.Databases != nil && backup.Spec.Databases[0] != "" {
+		cmdOpts = append(cmdOpts, "-database")
+		cmdOpts = append(cmdOpts, backup.Spec.Databases[0])
+	}
+	if backup.Spec.Databases != nil && backup.Spec.Retention != "" {
+		cmdOpts = append(cmdOpts, "--retention")
+		cmdOpts = append(cmdOpts, backup.Spec.Retention)
+	}
+	if backup.Spec.Retention != "" && backup.Spec.Shard != "" {
+		cmdOpts = append(cmdOpts, "-shard")
+		cmdOpts = append(cmdOpts, backup.Spec.Shard)
+	}
+	if backup.Spec.Start != "" {
+		cmdOpts = append(cmdOpts, "-start")
+		cmdOpts = append(cmdOpts, backup.Spec.Start)
+	}
+	if backup.Spec.End != "" {
+		cmdOpts = append(cmdOpts, "-end")
+		cmdOpts = append(cmdOpts, backup.Spec.End)
+	}
+	if backup.Spec.Start == "" && backup.Spec.End == "" && backup.Spec.Since != "" {
+		cmdOpts = append(cmdOpts, "-since")
+		cmdOpts = append(cmdOpts, backup.Spec.Since)
+	}
+	cmdOpts = append(cmdOpts, BackupDir+"/"+backupTime)
 
 	log.Printf("Command being run: %s", strings.Join(cmdOpts, " "))
 
 	// TODO: Parameterize? Get from config?
 	podName := backup.Spec.PodName
-        container := backup.Spec.ContainerName
-	outputBytes, stderrBytes, err := k8s.Exec(backup.Namespace, podName, container,cmdOpts, nil)
+	container := backup.Spec.ContainerName
+	outputBytes, stderrBytes, err := k8s.Exec(backup.Namespace, podName, container, cmdOpts, nil)
 
 	stderr := stderrBytes.String()
 	output := outputBytes.String()

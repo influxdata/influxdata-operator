@@ -6,15 +6,15 @@ import (
 
 // BackupSpec defines the specification for a backup.
 type BackupSpec struct {
-	Databases []string `json:"databases"`
-	Storage BackupStorage `json:"storage"`
-        PodName string `json:"podname"`
-        ContainerName string `json:"containername"` 
-        Retention string `json:"retention"`
-        Shard string `json:"shard"`
-        Start string `json:"start"`
-        End string `json:"end"`
-        Since string `json:"since"`
+	Databases     []string      `json:"databases"`
+	Storage       BackupStorage `json:"storage"`
+	PodName       string        `json:"podname"`
+	ContainerName string        `json:"containername"`
+	Retention     string        `json:"retention"`
+	Shard         string        `json:"shard"`
+	Start         string        `json:"start"`
+	End           string        `json:"end"`
+	Since         string        `json:"since"`
 }
 
 type BackupStorage struct {
@@ -22,11 +22,11 @@ type BackupStorage struct {
 }
 
 type S3BackupStorage struct {
-	AwsKeyId SecretRef `json:"aws_key_id"`
+	AwsKeyId     SecretRef `json:"aws_key_id"`
 	AwsSecretKey SecretRef `json:"aws_secret_key"`
-	Bucket string `json:"bucket"`
-	Folder string `json:"folder"`
-	Region string `json:"region"`
+	Bucket       string    `json:"bucket"`
+	Folder       string    `json:"folder"`
+	Region       string    `json:"region"`
 }
 
 type SecretRef struct {
