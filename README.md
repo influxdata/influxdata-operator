@@ -102,10 +102,13 @@ kubectl create -f deploy/crds/influxdata_v1alpha1_aws_creds.yaml
 ```
 
 
-In order to take a backup for database testdb , you need to specify the database name in Backup CR file [backup_cr.yaml](deploy/crds/influxdata_v1alpha1_backup_cr.yaml)
+In order to take a backup for one database, you need to specify the database name in Backup CR file [backup_cr.yaml](deploy/crds/influxdata_v1alpha1_backup_cr.yaml)
 
+The below CR file will take a backup for "testdb" and store it in `s3://influxdb-backup-restore/backup/` `in US-WEST-2 Region`.
 
-The below yaml file will take a backup for testdb and store it in `s3://influxdb-backup-restore/backup/` `in US-WEST-2 Region`.
+To backup all databases leave [databases:] blank.
+
+Please see [InfluxDB OSS Backup](https://docs.influxdata.com/influxdb/v1.7/administration/backup_and_restore/#backup)
 
 ```
 apiVersion: influxdata.com/v1alpha1
@@ -113,15 +116,20 @@ kind: Backup
 metadata:
   name: influxdb-backup
 spec:
-  databases:
-    - testdb
   podname: "influxdb-0"
   containername: "influxdb"
-  #shard:
-  #retention:
-  #start:
-  #end:
-  #since:
+  # [ -database <db_name> ] Optional: If not specified, all databases are backed up.
+  databases: "testdb"
+  # [ -shard <ID> ] Optional: If specified, then -retention <name> is required.
+  shard:
+  # [ -retention <rp_name> ] Optional: If not specified, the default is to use all retention policies. If specified, then -database is required.
+  retention:
+  # [ -start <timestamp> ] Optional: Not compatible with -since.
+  start:
+  # [ -end <timestamp> ] Optional:  Not compatible with -since. If used without -start, all data will be backed up starting from 1970-01-01.
+  end:
+  # [ -since <timestamp> ] Optional: Use -start instead, unless needed for legacy backup support.
+  since:
   storage:
     s3:
       aws_key_id:
@@ -161,11 +169,11 @@ Note: 20181114181703 this is the directory name that stored the backup in S3 buc
 #### Use backups to restore a database from S3 Bucket
 
 
-You need to specify the database that you wants to restore , also there is an option to restore database to new database name .
+You need to specify the database name that you want to restore. If restoring from a multiple db backup, all db will be restored unless a db name is explicitly specified. 
 
+Ex : the yaml file below will restore the "testdb" database from s3://influxdb-backup-restore/backup/20181114181703. 
 
-Ex : the yaml file below will restore the database from s3://influxdb-backup-restore/backup/20181114181703. 
-
+Please see [InfluxDB OSS Restore](https://docs.influxdata.com/influxdb/v1.7/administration/backup_and_restore/#restore)
 
 ```
 apiVersion: influxdata.com/v1alpha1
@@ -173,12 +181,19 @@ kind: Restore
 metadata:
   name: influxdb-restore
 spec:
-  database: "testdb"
-  restoreTo: "testdb2"
-  backupId: "20181116184626"
+  backupId: "20181119213530"
   podname: "influxdb-0"
   containername: "influxdb"
-  #rp:
+  # [ -database <db_name> ] Optional:  If not specified, all databases will be restored.
+  database: "testdb"
+  # [ -newdb <newdb_name> ] Optional: If not specified, then the value for -db is used. 
+  restoreTo: 
+  # [ -rp <rp_name> ] Optional: Requires that -db is set. If not specified, all retention policies will be used.
+  rp:
+  # [ -newrp <newrp_name> ] Optional: Requires that -rp is set. If not specified, then the -rp value is used.
+  newRp:
+  # [ -shard <shard_ID> ] Optional: If specified, then -db and -rp are required.
+  shard:
   storage:
     s3:
       aws_key_id:
@@ -194,6 +209,7 @@ spec:
       bucket: influxdb-backup-restore 
       folder: backup
       region: us-west-2
+
 
 ```
 
