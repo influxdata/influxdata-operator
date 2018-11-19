@@ -273,7 +273,7 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 			Namespace: m.Namespace,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName: "influxdb-svc",
+			ServiceName: m.Name + "-svc",
 			Replicas:    &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
