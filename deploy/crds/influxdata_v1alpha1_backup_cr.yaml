@@ -3,13 +3,19 @@ kind: Backup
 metadata:
   name: influxdb-backup
 spec:
-  databases:
   podname: "influxdb-0"
   containername: "influxdb"
+  # [ -database <db_name> ] Optional: If not specified, all databases are backed up.
+  databases:
+  # [ -shard <ID> ] Optional: If specified, then -retention <name> is required.
   shard:
+  # [ -retention <rp_name> ] Optional: If not specified, the default is to use all retention policies. If specified, then -database is required.
   retention:
+  # [ -start <timestamp> ] Optional: Not compatible with -since.
   start:
+  # [ -end <timestamp> ] Optional:  Not compatible with -since. If used without -start, all data will be backed up starting from 1970-01-01.
   end:
+  # [ -since <timestamp> ] Optional: Use -start instead, unless needed for legacy backup support.
   since:
   storage:
     s3:
