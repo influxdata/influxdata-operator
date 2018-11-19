@@ -3,12 +3,14 @@ kind: Restore
 metadata:
   name: influxdb-restore
 spec:
-  database: "testdb"
-  restoreTo: "testdb2"
-  backupId: "20181116203744"
+  database: 
+  restoreTo: 
+  backupId: "20181119213530"
   podname: "influxdb-0"
   containername: "influxdb"
-  #rp:
+  rp:
+  newRp:
+  shard:
   storage:
     s3:
       aws_key_id:

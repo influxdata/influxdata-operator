@@ -10,13 +10,15 @@ import (
 
 // RestoreSpec defines the desired config of Restore
 type RestoreSpec struct {
-	Database string `json:"database"`
-	RestoreToDatabase string `json:"restoreTo"`
-	BackupId string `json:"backupId"`
-	Storage BackupStorage `json:"storage"`
-        PodName string `json:"podname"`
-        ContainerName string `json:"containername"`
-        Rp string `json:"rp"`
+	Database          string        `json:"database"`
+	RestoreToDatabase string        `json:"restoreTo"`
+	BackupId          string        `json:"backupId"`
+	Storage           BackupStorage `json:"storage"`
+	PodName           string        `json:"podname"`
+	ContainerName     string        `json:"containername"`
+	Rp                string        `json:"rp"`
+	NewRp             string        `json:"newRp"`
+	Shard             string        `json:"shard"`
 }
 
 // RestoreStatus defines the observed state of Restore

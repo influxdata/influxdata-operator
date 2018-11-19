@@ -92,9 +92,6 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 	}
 
 	restoreToDb := instance.Spec.RestoreToDatabase
-	if len(restoreToDb) <= 0 {
-		restoreToDb = instance.Spec.Database
-	}
 
 	log.Printf("Restore DB: %s, To DB: %s, Backup key: %s", instance.Spec.Database, restoreToDb, instance.Spec.BackupId)
 
@@ -157,16 +154,32 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 		"influxd",
 		"restore",
 		"-portable",
-		"-db",
-		instance.Spec.Database,
-		"-newdb",
-		restoreToDb,
-                "-rp",
-                instance.Spec.Rp,
-		fmt.Sprintf("%s/%s", RestoreDir, instance.Spec.BackupId),
 	}
 
-       log.Printf(strings.Join(command, " "))
+	if instance.Spec.Database != "" {
+		command = append(command, "-db")
+		command = append(command, instance.Spec.Database)
+	}
+	if restoreToDb != "" {
+		command = append(command, "-newdb")
+		command = append(command, restoreToDb)
+	}
+	if instance.Spec.Rp != "" && instance.Spec.Database != "" {
+		command = append(command, "-rp")
+		command = append(command, instance.Spec.Rp)
+	}
+	if instance.Spec.NewRp != "" && instance.Spec.Rp != "" {
+		command = append(command, "-newrp")
+		command = append(command, instance.Spec.NewRp)
+	}
+	if instance.Spec.Shard != "" && instance.Spec.Database != "" && instance.Spec.Rp != "" {
+		command = append(command, "-shard")
+		command = append(command, instance.Spec.Shard)
+	}
+
+	command = append(command, RestoreDir+"/"+instance.Spec.BackupId)
+
+	log.Printf(strings.Join(command, " "))
 
 	stdout, stderr, err := k8s.Exec(request.Namespace, instance.Spec.PodName, instance.Spec.ContainerName, command, nil)
 
