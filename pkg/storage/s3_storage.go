@@ -3,6 +3,10 @@ package storage
 import (
 	"context"
 	"fmt"
+	"io"
+	"log"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	s3credentials "github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -11,11 +15,8 @@ import (
 	"github.com/golang/glog"
 	"github.com/influxdata-operator/pkg/apis/influxdata/v1alpha1"
 	"github.com/pkg/errors"
-	"io"
 	"k8s.io/apimachinery/pkg/types"
-	"log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,7 +77,6 @@ func (p *S3StorageProvider) Store(key string, body io.ReadCloser) error {
 // Retrieve the given key from S3 storage service.
 func (p *S3StorageProvider) Retrieve(key string) (io.ReadCloser, *int64, error) {
 	glog.V(2).Infof("Retrieving backup (provider=\"s3\", bucket=%q, key=%q)", p.spec.Bucket, key)
-
 	obj, err := p.s3.GetObject(&s3.GetObjectInput{Bucket: &p.spec.Bucket, Key: &key})
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "error retrieving backup (provider='S3', bucket='%s', key='%s')", p.spec.Bucket, key)
@@ -90,6 +90,7 @@ func (p *S3StorageProvider) Retrieve(key string) (io.ReadCloser, *int64, error) 
 // Get list of objects in provided backup s3 bucket.
 func (p *S3StorageProvider) ListDirectory(key string) ([]*string, error) {
 	glog.V(2).Infof("Retrieving backup list (provider='S3', bucket=%q, key=%q)\n", p.spec.Bucket, key)
+	log.Printf("Retrieving backup list (provider='S3', bucket=%q, key=%q)\n", p.spec.Bucket, key)
 	obj, err := p.s3.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: &p.spec.Bucket,
 		Delimiter: aws.String("/"), Prefix: aws.String(key + "/")})
 

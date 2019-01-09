@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type fileSpec struct {
@@ -216,13 +217,13 @@ func makeTar(buffer *io.ReadCloser, size *int64, destPath fileSpec, writer io.Wr
 	_, filename := path.Split(destPath.File)
 	now := time.Now()
 	fakeStat := &tar.Header{
-		Name: filename,
-		Size: *size,
-		Mode: 0777,
-		ModTime: now,
+		Name:       filename,
+		Size:       *size,
+		Mode:       0777,
+		ModTime:    now,
 		AccessTime: now,
 		ChangeTime: now,
-		Typeflag: 0,
+		Typeflag:   0,
 	}
 
 	if err := tarWriter.WriteHeader(fakeStat); err != nil {

@@ -3,11 +3,11 @@ kind: Restore
 metadata:
   name: influxdb-restore
 spec:
-  backupId: "20181119213530"
+  backupId: "20190105223039"
   podname: "influxdb-0"
   containername: "influxdb"
   # [ -database <db_name> ] Optional:  If not specified, all databases will be restored.
-  database: 
+  database: testdb
   # [ -newdb <newdb_name> ] Optional: If not specified, then the value for -db is used. 
   restoreTo: 
   # [ -rp <rp_name> ] Optional: Requires that -db is set. If not specified, all retention policies will be used.
@@ -17,17 +17,26 @@ spec:
   # [ -shard <shard_ID> ] Optional: If specified, then -db and -rp are required.
   shard:
   storage:
+    provider: gcs
     s3:
       aws_key_id:
         valueFrom:
           secretKeyRef:
-            name: influxdb-backup
+            name: influxdb-backup-s3
             key: awsAccessKeyId
       aws_secret_key:
         valueFrom:
           secretKeyRef:
-            name: influxdb-backup
+            name: influxdb-backup-s3
             key: awsSecretAccessKey
-      bucket: influxdb-backup-restore 
+      bucket: influxdb-backup-restore
       folder: backup
       region: us-west-2
+    gcs:
+      sa_json:
+        valueFrom:
+          secretKeyRef:
+            name: influxdb-backup-gcs
+            key: sa
+      bucket: influxdb-backup-restore
+      folder: backup

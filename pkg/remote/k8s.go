@@ -77,7 +77,7 @@ func (client *K8sClient) Exec(namespace, podName, containerName string, command 
 		TTY:       false,
 	}, parameterCodec)
 
-	exec, err :=  remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Could not create SPDY executor")
 	}

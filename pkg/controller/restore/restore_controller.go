@@ -3,26 +3,26 @@ package restore
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
+
 	influxdatav1alpha1 "github.com/influxdata-operator/pkg/apis/influxdata/v1alpha1"
+	backup "github.com/influxdata-operator/pkg/controller/backup"
 	myremote "github.com/influxdata-operator/pkg/remote"
 	storage2 "github.com/influxdata-operator/pkg/storage"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"strings"
 )
 
-const (
-	RestoreDir = "/var/lib/influxdb/restore"
-)
+var RestoreDir = "/var/lib/influxdb/restore"
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -91,54 +91,97 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, err
 	}
 
-	restoreToDb := instance.Spec.RestoreToDatabase
-
-	log.Printf("Restore DB: %s, To DB: %s, Backup key: %s", instance.Spec.Database, restoreToDb, instance.Spec.BackupId)
-
-	storage, err := storage2.NewS3StorageProvider(request.Namespace, r.client, &instance.Spec.Storage.S3)
-	if err != nil {
-		log.Printf("Error creating s3 storage provider: %v", err)
-		return reconcile.Result{}, err
-	}
-
 	k8s, err := myremote.NewK8sClient()
 	if err != nil {
 		log.Printf("Error occurred while getting K8s Client: %+v", err)
 		return reconcile.Result{}, err
 	}
 
-	remoteFolder := instance.Spec.Storage.S3.Folder + "/" + instance.Spec.BackupId
-
-	keys, err := storage.ListDirectory(remoteFolder)
-	if err != nil {
-		log.Printf("Error while listing directory: %v\n", err)
-		return reconcile.Result{}, err
-	}
-
-	for _, key := range keys {
-		// need to strip off prefix, just want name.
-		localFileName := strings.TrimPrefix(*key, remoteFolder)
-
-		body, size, err := storage.Retrieve(*key)
+	switch providerType := instance.Spec.Storage.Provider; providerType {
+	case "s3":
+		storage, err := storage2.NewS3StorageProvider(request.Namespace, r.client, &instance.Spec.Storage.S3)
 		if err != nil {
-			log.Printf("Unable to fetch key %s: %v", *key, err)
+			log.Printf("Error creating s3 storage provider: %v", err)
 			return reconcile.Result{}, err
 		}
 
-		// Send directly to k8s pod
-		destination := fmt.Sprintf("%s/%s:%s/%s%s", request.Namespace, instance.Spec.PodName,
-			RestoreDir, instance.Spec.BackupId, localFileName)
+		remoteFolder := instance.Spec.Storage.S3.Folder + "/" + instance.Spec.BackupId
 
-		err = k8s.CopyToK8s(destination, size, &body)
+		keys, err := storage.ListDirectory(remoteFolder)
 		if err != nil {
-			fmt.Printf("Error while copying to k8s: %+v\n", err)
+			log.Printf("Error while listing directory: %v\n", err)
+			return reconcile.Result{}, err
+		}
+
+		for _, key := range keys {
+			// need to strip off prefix, just want name.
+			localFileName := strings.TrimPrefix(*key, remoteFolder)
+
+			body, size, err := storage.Retrieve(*key)
+			log.Printf("localFileName is %s, size is %d\n", localFileName, *size)
+			if err != nil {
+				log.Printf("Unable to fetch key %s: %v", *key, err)
+				return reconcile.Result{}, err
+			}
+
+			// Send directly to k8s pod
+			destination := fmt.Sprintf("%s/%s:%s/%s%s", request.Namespace, instance.Spec.PodName,
+				RestoreDir, instance.Spec.BackupId, localFileName)
+
+			err = k8s.CopyToK8s(destination, size, &body)
+			if err != nil {
+				log.Printf("Error while copying to k8s: %+v\n", err)
+				body.Close()
+				return reconcile.Result{}, err
+			}
+
 			body.Close()
+		}
+		log.Println("Copy from S3 succeeded")
+
+	case "gcs":
+		provider, err := storage2.NewGcsStorageProvider(request.Namespace, r.client, &instance.Spec.Storage.Gcs)
+		if err != nil {
+			log.Printf("error creating GCS storage provider: %v", err)
+			return reconcile.Result{}, err
+		}
+		remoteFolder := instance.Spec.Storage.Gcs.Folder + "/" + instance.Spec.BackupId
+		keys, err := provider.ListDirectory(remoteFolder)
+		if err != nil {
+			log.Printf("Error while listing directory: %v\n", err)
 			return reconcile.Result{}, err
 		}
 
-		body.Close()
+		for _, key := range keys {
+			// need to strip off prefix, just want name.
+			localFileName := strings.TrimPrefix(key, remoteFolder)
+
+			r, size, err := provider.Retrieve(key)
+			if err != nil {
+				log.Printf("Unable to fetch key %s: %v", key, err)
+				return reconcile.Result{}, err
+			}
+			log.Printf("localFileName is %s, size is %d\n", localFileName, *size)
+
+			// Send directly to k8s pod
+			destination := fmt.Sprintf("%s/%s:%s/%s%s", request.Namespace, instance.Spec.PodName,
+				RestoreDir, instance.Spec.BackupId, localFileName)
+
+			err = k8s.CopyToK8s(destination, size, &r)
+			if err != nil {
+				log.Printf("Error while copying to k8s: %+v\n", err)
+				r.Close()
+				return reconcile.Result{}, err
+			}
+			r.Close()
+
+		}
+		log.Println("Copy from GCS succeeded")
+	case "pv":
+		// uses the PV's backup data
+		RestoreDir = backup.BackupDir
+	default:
 	}
-	fmt.Println("Copy from S3 succeeded")
 
 	// Finally, we run the restore.
 	pod, err := k8s.ClientSet.CoreV1().Pods(request.Namespace).Get(instance.Spec.PodName, metav1.GetOptions{})
@@ -149,6 +192,12 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 		return reconcile.Result{}, fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
 	}
+
+	log.Printf("pod=%v\n", pod)
+
+	restoreToDb := instance.Spec.RestoreToDatabase
+
+	log.Printf("Restore DB: %s, To DB: %s, Backup key: %s", instance.Spec.Database, restoreToDb, instance.Spec.BackupId)
 
 	command := []string{
 		"influxd",
@@ -192,6 +241,6 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, err
 	}
 
-	fmt.Printf("Restore output: %v\n", stdout)
+	log.Printf("Restore output: %v\n", stdout)
 	return reconcile.Result{}, nil
 }

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: influxdb-backup-gcs
+type: Opaque
+data:
+  sa: <base64encoded>

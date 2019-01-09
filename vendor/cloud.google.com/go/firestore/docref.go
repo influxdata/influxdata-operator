@@ -15,19 +15,18 @@
 package firestore
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"reflect"
 	"sort"
 
-	"golang.org/x/net/context"
+	vkit "cloud.google.com/go/firestore/apiv1beta1"
 	"google.golang.org/api/iterator"
+	pb "google.golang.org/genproto/googleapis/firestore/v1beta1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	vkit "cloud.google.com/go/firestore/apiv1beta1"
-	pb "google.golang.org/genproto/googleapis/firestore/v1beta1"
 )
 
 var errNilDocRef = errors.New("firestore: nil DocumentRef")
