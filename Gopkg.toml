@@ -65,3 +65,7 @@ required = [
 # Required by aws sdk
 [[override]]
   name = "github.com/jmespath/go-jmespath"
+
+[[constraint]]
+  name = "google.golang.org/api"
+  version = "0.1.0"

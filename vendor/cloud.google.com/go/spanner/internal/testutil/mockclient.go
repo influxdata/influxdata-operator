@@ -17,23 +17,21 @@ limitations under the License.
 package testutil
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
-	"google.golang.org/grpc/status"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
 	proto3 "github.com/golang/protobuf/ptypes/struct"
 	pbt "github.com/golang/protobuf/ptypes/timestamp"
-
 	sppb "google.golang.org/genproto/googleapis/spanner/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Action is a mocked RPC activity that MockCloudSpannerClient will take.

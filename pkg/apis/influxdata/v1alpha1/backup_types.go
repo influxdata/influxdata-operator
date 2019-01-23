@@ -18,7 +18,9 @@ type BackupSpec struct {
 }
 
 type BackupStorage struct {
-	S3 S3BackupStorage `json:"s3,omitempty"`
+	Provider string           `json:"provider"`
+	S3       S3BackupStorage  `json:"s3,omitempty"`
+	Gcs      GcsBackupStorage `json:"gcs,omitempty"`
 }
 
 type S3BackupStorage struct {
@@ -27,6 +29,12 @@ type S3BackupStorage struct {
 	Bucket       string    `json:"bucket"`
 	Folder       string    `json:"folder"`
 	Region       string    `json:"region"`
+}
+
+type GcsBackupStorage struct {
+	SaJson SecretRef `json:"sa_json"`
+	Bucket string    `json:"bucket"`
+	Folder string    `json:"folder"`
 }
 
 type SecretRef struct {

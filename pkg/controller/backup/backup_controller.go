@@ -3,12 +3,13 @@ package backup
 import (
 	"context"
 	"fmt"
-	"github.com/influxdata-operator/pkg/storage"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/influxdata-operator/pkg/storage"
 
 	influxdatav1alpha1 "github.com/influxdata-operator/pkg/apis/influxdata/v1alpha1"
 	myremote "github.com/influxdata-operator/pkg/remote"
@@ -109,7 +110,8 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-	if &backup.Spec.Storage.S3 != nil {
+	switch providerType := backup.Spec.Storage.Provider; providerType {
+	case "s3":
 		provider, err := storage.NewS3StorageProvider(request.Namespace, r.client, &backup.Spec.Storage.S3)
 
 		if err != nil {
@@ -117,20 +119,42 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 			return reconcile.Result{}, err
 		}
 
-		log.Println("Shipping influx backup to S3...")
+		log.Println("Shipping influx backup to the operator storage...")
 		if err := k8s.CopyFromK8s(sourceFile, destFile); err != nil {
 			log.Printf("error during copy from [%s] to [%s]: %v\n", sourceFile, destFile, err)
 			return reconcile.Result{}, err
 		}
-
-		s3location, err := storeInS3(provider, backup.Spec.Storage.S3, backupTime, destFile)
+		s3location, err := storeInS3(provider, &backup.Spec.Storage.S3, backupTime, destFile)
 
 		if err != nil {
 			log.Printf("Error during S3 storage: %v\n", err)
 			return reconcile.Result{}, err
 		}
-
 		log.Printf("Backups stored to %s\n", s3location)
+	case "gcs":
+
+		provider, err := storage.NewGcsStorageProvider(request.Namespace, r.client, &backup.Spec.Storage.Gcs)
+
+		if err != nil {
+			log.Printf("error creating GCS storage provider: %v", err)
+			return reconcile.Result{}, err
+		}
+		log.Println("Shipping influx backup to the operator storage...")
+		if err := k8s.CopyFromK8s(sourceFile, destFile); err != nil {
+			log.Printf("error during copy from [%s] to [%s]: %v\n", sourceFile, destFile, err)
+			return reconcile.Result{}, err
+		}
+		gcsLocation, err := storeInGCS(provider, &backup.Spec.Storage.Gcs, backupTime, destFile)
+
+		if err != nil {
+			log.Printf("Error during GCS storage: %v\n", err)
+			return reconcile.Result{}, err
+		}
+
+		log.Printf("Backups stored to %s\n", gcsLocation)
+	case "pv":
+	default:
+		// back up to PV only
 	}
 
 	log.Println("Done with reconcile!")
@@ -198,7 +222,7 @@ func (r *ReconcileInfluxdbBackup) runBackup(k8s *myremote.K8sClient, backup *inf
 	return backupTime, nil
 }
 
-func storeInS3(provider *storage.S3StorageProvider, backupStorage influxdatav1alpha1.S3BackupStorage, name, srcFolder string) (string, error) {
+func storeInS3(provider *storage.S3StorageProvider, backupStorage *influxdatav1alpha1.S3BackupStorage, name, srcFolder string) (string, error) {
 	storageKey := backupStorage.Folder + "/" + name
 
 	localFolder := srcFolder
@@ -224,4 +248,32 @@ func storeInS3(provider *storage.S3StorageProvider, backupStorage influxdatav1al
 	}
 
 	return "s3://" + backupStorage.Bucket + "/" + storageKey, nil
+}
+
+func storeInGCS(provider *storage.GcsStorageProvider, backupStorage *influxdatav1alpha1.GcsBackupStorage, name, srcFolder string) (string, error) {
+	storageKey := backupStorage.Folder + "/" + name
+
+	localFolder := srcFolder
+	files, err := ioutil.ReadDir(localFolder)
+	if err != nil {
+		return "", err
+	}
+
+	// Loop through files in the source directory, send to GCS
+	for _, file := range files {
+		localFile := localFolder + "/" + file.Name()
+		f, err := os.Open(localFile)
+
+		if err != nil {
+			return "", err
+		}
+
+		log.Printf("Storing To Gcs: [%s] to [%s]\n", localFile, storageKey+"/"+file.Name())
+		err = provider.Store(storageKey+"/"+file.Name(), f)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return "gs://" + backupStorage.Bucket + "/" + storageKey, nil
 }

@@ -17,11 +17,10 @@ limitations under the License.
 package spanner
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"google.golang.org/api/iterator"
 	sppb "google.golang.org/genproto/googleapis/spanner/v1"
@@ -191,7 +190,7 @@ func (t *txReadOnly) AnalyzeQuery(ctx context.Context, statement Statement) (*sp
 func (t *txReadOnly) query(ctx context.Context, statement Statement, mode sppb.ExecuteSqlRequest_QueryMode) (ri *RowIterator) {
 	ctx = traceStartSpan(ctx, "cloud.google.com/go/spanner.Query")
 	defer func() { traceEndSpan(ctx, ri.err) }()
-	req, sh, err := t.prepareExecuteSql(ctx, statement, mode)
+	req, sh, err := t.prepareExecuteSQL(ctx, statement, mode)
 	if err != nil {
 		return &RowIterator{err: err}
 	}
@@ -206,7 +205,7 @@ func (t *txReadOnly) query(ctx context.Context, statement Statement, mode sppb.E
 		t.release)
 }
 
-func (t *txReadOnly) prepareExecuteSql(ctx context.Context, stmt Statement, mode sppb.ExecuteSqlRequest_QueryMode) (
+func (t *txReadOnly) prepareExecuteSQL(ctx context.Context, stmt Statement, mode sppb.ExecuteSqlRequest_QueryMode) (
 	*sppb.ExecuteSqlRequest, *sessionHandle, error) {
 	sh, ts, err := t.acquire(ctx)
 	if err != nil {
@@ -218,15 +217,18 @@ func (t *txReadOnly) prepareExecuteSql(ctx context.Context, stmt Statement, mode
 		// Might happen if transaction is closed in the middle of a API call.
 		return nil, nil, errSessionClosed(sh)
 	}
+	params, paramTypes, err := stmt.convertParams()
+	if err != nil {
+		return nil, nil, err
+	}
 	req := &sppb.ExecuteSqlRequest{
 		Session:     sid,
 		Transaction: ts,
 		Sql:         stmt.SQL,
 		QueryMode:   mode,
 		Seqno:       atomic.AddInt64(&t.sequenceNumber, 1),
-	}
-	if err := stmt.bindParams(req); err != nil {
-		return nil, nil, err
+		Params:      params,
+		ParamTypes:  paramTypes,
 	}
 	return req, sh, nil
 }
@@ -665,7 +667,7 @@ func (t *ReadWriteTransaction) BufferWrite(ms []*Mutation) error {
 func (t *ReadWriteTransaction) Update(ctx context.Context, stmt Statement) (rowCount int64, err error) {
 	ctx = traceStartSpan(ctx, "cloud.google.com/go/spanner.Update")
 	defer func() { traceEndSpan(ctx, err) }()
-	req, sh, err := t.prepareExecuteSql(ctx, stmt, sppb.ExecuteSqlRequest_NORMAL)
+	req, sh, err := t.prepareExecuteSQL(ctx, stmt, sppb.ExecuteSqlRequest_NORMAL)
 	if err != nil {
 		return 0, err
 	}
