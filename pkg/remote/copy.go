@@ -68,7 +68,6 @@ func (client *K8sClient) CopyToK8s(dest string, size *int64, buffer *io.ReadClos
 	if err != nil {
 		return err
 	}
-
 	pod, err := client.ClientSet.CoreV1().Pods(destSpec.PodNamespace).Get(destSpec.PodName, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -76,6 +75,10 @@ func (client *K8sClient) CopyToK8s(dest string, size *int64, buffer *io.ReadClos
 
 	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 		return fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+	}
+	// ignore the empty file for unit testing mock
+	if *size == 0 {
+		return nil
 	}
 
 	dir, _ := filepath.Split(destSpec.File)

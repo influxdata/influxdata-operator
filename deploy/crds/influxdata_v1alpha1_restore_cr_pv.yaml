@@ -3,7 +3,7 @@ kind: Restore
 metadata:
   name: influxdb-restore
 spec:
-  backupId: "20190106002732"
+  backupId: "20190126003326"
   podname: "influxdb-0"
   containername: "influxdb"
   # [ -database <db_name> ] Optional:  If not specified, all databases will be restored.

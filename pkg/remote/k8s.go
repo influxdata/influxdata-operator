@@ -3,20 +3,23 @@ package remote
 import (
 	"bytes"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
+	"os"
+	"path/filepath"
+
+	"github.com/pkg/errors"
 	core_v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	fake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
-	"os"
-	"path/filepath"
 )
 
 type K8sClient struct {
-	ClientSet *kubernetes.Clientset
+	// kubernetes.Interface should be used instead of kubernets.Inteface for unit test (mocking)
+	ClientSet kubernetes.Interface
 	Config    *rest.Config
 }
 
@@ -95,4 +98,34 @@ func (client *K8sClient) Exec(namespace, podName, containerName string, command 
 	}
 
 	return &stdout, &stderr, nil
+}
+
+// return a mock of K8sClient struct, for unit testing
+func NewMockK8sClient(objs []runtime.Object) (*K8sClient, error) {
+	var kubeconfig string
+	if kubeConfigPath := os.Getenv("KUBECONFIG"); kubeConfigPath != "" {
+		kubeconfig = kubeConfigPath // CI process
+	} else {
+		kubeconfig = filepath.Join(os.Getenv("HOME"), ".kube", "config") // Development environment
+	}
+
+	var config *rest.Config
+
+	_, err := os.Stat(kubeconfig)
+	if err != nil {
+		// In cluster configuration
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Out of cluster configuration
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+	fakeClientset := fake.NewSimpleClientset(objs...)
+	var client = &K8sClient{ClientSet: fakeClientset, Config: config}
+	return client, nil
 }

@@ -28,9 +28,6 @@ build:
 	@echo "Version should be $(version)"
 
 deploy: build
-	# testing GKE here
-	# kubectl apply -f deploy/gcp_storageclass.yaml
-	#sed -E 's=REPLACE_IMAGE=$(orgname)/$(operatorname):v$(version)=g' bundle.yaml > .bundel.yaml
 	@sed -E 's=REPLACE_IMAGE=$(orgname)/$(operatorname):v$(version)=g' bundle.yaml | kubectl apply -f -
 
 .PHONY: test-backup
