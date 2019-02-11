@@ -1,0 +1,43 @@
+{
+ "kind": "storage#objects",
+ "items": [
+  {
+   "kind": "storage#object",
+   "id": "influxdb-backup-restore/backup/20190122062557/20190122T062557Z.manifest/1548138358048879",
+   "selfLink": "https://www.googleapis.com/storage/v1/b/influxdb-backup-restore/o/backup%2F20190122062557%2F20190122T062557Z.manifest",
+   "name": "backup/20190122062557/20190122T062557Z.manifest",
+   "bucket": "influxdb-backup-restore",
+   "generation": "1548138358048879",
+   "metageneration": "1",
+   "contentType": "text/plain; charset=utf-8",
+   "timeCreated": "2019-01-22T06:25:58.048Z",
+   "updated": "2019-01-22T06:25:58.048Z",
+   "storageClass": "MULTI_REGIONAL",
+   "timeStorageClassUpdated": "2019-01-22T06:25:58.048Z",
+   "size": "1268",
+   "md5Hash": "+SQNpkHKrE2+1zARqAnniw==",
+   "mediaLink": "https://www.googleapis.com/download/storage/v1/b/influxdb-backup-restore/o/backup%2F20190122062557%2F20190122T062557Z.manifest?generation=1548138358048879&alt=media",
+   "crc32c": "vGxmXQ==",
+   "etag": "CO+QlOfggOACEAE="
+  },
+  {
+   "kind": "storage#object",
+   "id": "influxdb-backup-restore/backup/20190122062557/20190122T062557Z.meta/1548138358366321",
+   "selfLink": "https://www.googleapis.com/storage/v1/b/influxdb-backup-restore/o/backup%2F20190122062557%2F20190122T062557Z.meta",
+   "name": "backup/20190122062557/20190122T062557Z.meta",
+   "bucket": "influxdb-backup-restore",
+   "generation": "1548138358366321",
+   "metageneration": "1",
+   "contentType": "application/octet-stream",
+   "timeCreated": "2019-01-22T06:25:58.365Z",
+   "updated": "2019-01-22T06:25:58.365Z",
+   "storageClass": "MULTI_REGIONAL",
+   "timeStorageClassUpdated": "2019-01-22T06:25:58.365Z",
+   "size": "315",
+   "md5Hash": "V7DeVu6zdWsx2kUTGimp/g==",
+   "mediaLink": "https://www.googleapis.com/download/storage/v1/b/influxdb-backup-restore/o/backup%2F20190122062557%2F20190122T062557Z.meta?generation=1548138358366321&alt=media",
+   "crc32c": "PqF7Bg==",
+   "etag": "CPHAp+fggOACEAE="
+  }
+ ]
+}

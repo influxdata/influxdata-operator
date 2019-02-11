@@ -1,0 +1,19 @@
+{
+ "kind": "storage#object",
+ "id": "influxdb-backup-restore/backup/upload.manifest/1548208164652621",
+ "selfLink": "https://www.googleapis.com/storage/v1/b/influxdb-backup-restore/o/backup%2Fupload.manifest",
+ "name": "backup/download.manifest",
+ "bucket": "influxdb-backup-restore",
+ "generation": "1548208164652621",
+ "metageneration": "1",
+ "contentType": "application/json",
+ "timeCreated": "2019-01-23T01:49:24.652Z",
+ "updated": "2019-01-23T01:49:24.652Z",
+ "storageClass": "MULTI_REGIONAL",
+ "timeStorageClassUpdated": "2019-01-23T01:49:24.652Z",
+ "size": "1272",
+ "md5Hash": "tlXgztGC89xNYjkjDlBg5g==",
+ "mediaLink": "https://www.googleapis.com/download/storage/v1/b/influxdb-backup-restore/o/backup%2Fupload.manifest?generation=1548208164652621&alt=media",
+ "crc32c": "otHCrg==",
+ "etag": "CM2Mxe3kguACEAE="
+}

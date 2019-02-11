@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "fileName": "20190122T162557Z.meta",
+    "size": 310
+  },
+  "limited": false,
+  "files": [
+    {
+      "database": "_internal",
+      "policy": "monitor",
+      "shardID": 1,
+      "fileName": "20190122T162557Z.s1.tar.gz",
+      "size": 637440,
+      "lastModified": 0
+    },
+    {
+      "database": "NOAA_water_database",
+      "policy": "autogen",
+      "shardID": 7,
+      "fileName": "20190122T162557Z.s7.tar.gz",
+      "size": 45056,
+      "lastModified": 0
+    },
+    {
+      "database": "NOAA_water_database",
+      "policy": "autogen",
+      "shardID": 8,
+      "fileName": "20190122T162557Z.s8.tar.gz",
+      "size": 53760,
+      "lastModified": 0
+    },
+    {
+      "database": "NOAA_water_database",
+      "policy": "autogen",
+      "shardID": 9,
+      "fileName": "20190122T162557Z.s9.tar.gz",
+      "size": 60928,
+      "lastModified": 0
+    },
+    {
+      "database": "NOAA_water_database",
+      "policy": "autogen",
+      "shardID": 10,
+      "fileName": "20190122T162557Z.s10.tar.gz",
+      "size": 53760,
+      "lastModified": 0
+    },
+    {
+      "database": "NOAA_water_database",
+      "policy": "autogen",
+      "shardID": 11,
+      "fileName": "20190122T162557Z.s11.tar.gz",
+      "size": 37376,
+      "lastModified": 0
+    }
+  ]
+}

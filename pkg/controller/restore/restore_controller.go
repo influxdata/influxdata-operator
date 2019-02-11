@@ -140,42 +140,24 @@ func (r *ReconcileRestore) Reconcile(request reconcile.Request) (reconcile.Resul
 		log.Println("Copy from S3 succeeded")
 
 	case "gcs":
-		provider, err := storage2.NewGcsStorageProvider(request.Namespace, r.client, &instance.Spec.Storage.Gcs)
+		// create a new storage client
+		factory := &storage2.StorageClientFactoryGCS{CredentialsFile: storage2.CredentialsFile}
+
+		provider, err := storage2.NewGcsStorageProvider(request.Namespace, r.client, &instance.Spec.Storage.Gcs, factory)
 		if err != nil {
 			log.Printf("error creating GCS storage provider: %v", err)
 			return reconcile.Result{}, err
 		}
+
+		destinationBase := fmt.Sprintf("%s/%s:%s/%s", request.Namespace, instance.Spec.PodName,
+			RestoreDir, instance.Spec.BackupId)
 		remoteFolder := instance.Spec.Storage.Gcs.Folder + "/" + instance.Spec.BackupId
-		keys, err := provider.ListDirectory(remoteFolder)
+		err = provider.CopyFromGCS(remoteFolder, destinationBase, k8s)
 		if err != nil {
-			log.Printf("Error while listing directory: %v\n", err)
+			log.Printf("Error while CopyFromGCS: %v\n", err)
 			return reconcile.Result{}, err
 		}
 
-		for _, key := range keys {
-			// need to strip off prefix, just want name.
-			localFileName := strings.TrimPrefix(key, remoteFolder)
-
-			r, size, err := provider.Retrieve(key)
-			if err != nil {
-				log.Printf("Unable to fetch key %s: %v", key, err)
-				return reconcile.Result{}, err
-			}
-			log.Printf("localFileName is %s, size is %d\n", localFileName, *size)
-
-			// Send directly to k8s pod
-			destination := fmt.Sprintf("%s/%s:%s/%s%s", request.Namespace, instance.Spec.PodName,
-				RestoreDir, instance.Spec.BackupId, localFileName)
-
-			err = k8s.CopyToK8s(destination, size, &r)
-			if err != nil {
-				log.Printf("Error while copying to k8s: %+v\n", err)
-				r.Close()
-				return reconcile.Result{}, err
-			}
-			r.Close()
-
-		}
 		log.Println("Copy from GCS succeeded")
 	case "pv":
 		// uses the PV's backup data

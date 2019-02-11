@@ -30,6 +30,8 @@ If deploying on GKE clusters see [gcp_storageclass.yaml](deploy/gcp_storageclass
 
 If deploying on EKS clusters see [aws_storageclass.yaml](deploy/aws_storageclass.yaml).
 
+If deploying on AKS clusters see [azure_storageclass.yaml](deploy/azure_storageclass.yaml).
+
 If deploying on Local Workstation  see [local_storage.yaml](deploy/local_storage.yaml).
 
 
@@ -78,6 +80,12 @@ Simply delete the `InfluxDB` Custom Resource to remove the cluster.
 ```
 kubectl delete -f bundle.yaml
 ```
+
+### Developer notes
+If the changes of the operator code are desired, `make deploy orgname=<docker_repo_name>` performs the following steps:
+1. Build and push a new operator image with new tag in any docker registry, assuming the docker push is configured properly. 
+2. Update the `influxdata-operator` pod in the current kubernetes cluster associated with the current kubernetes context. `kubectl config current-context` can show the name of current kubernetes context. 
+
 
 ### Backup and Restore in AWS
 
@@ -361,3 +369,118 @@ You can have a look at the logs for troubleshooting if needed.
 kubectl logs influxdata-operator-76f9d76c57-r2vpd
 ```
 
+### Backup and Restore in Azure
+
+#### Create "on-demand" Backups & Store it in PV
+
+The backup CRD stores the backed up files to a PV(Persistent Volume) as an Azure Disk Storage.
+
+In order to take a backup for one database, you need to specify the database name in Backup CR file [backup_cr_pv.yaml](deploy/crds/influxdata_v1alpha1_backup_cr_pv.yaml)
+
+The below CR file will take a backup for "testdb" and store it in a Azure Disk storage `standard-resize`.
+
+To backup all databases leave [databases:] blank.
+* Please see [InfluxDB OSS Backup](https://docs.influxdata.com/influxdb/v1.7/administration/backup_and_restore/#backup)
+* Please note the `provider` is set to `pv` as shown in the below yaml.
+
+```
+apiVersion: influxdata.com/v1alpha1
+kind: Backup
+metadata:
+  name: influxdb-backup
+spec:
+  podname: "influxdb-0"
+  containername: "influxdb"
+  # [ -database <db_name> ] Optional: If not specified, all databases are backed up.
+  databases:"testdb"
+  # [ -shard <ID> ] Optional: If specified, then -retention <name> is required.
+  shard:
+  # [ -retention <rp_name> ] Optional: If not specified, the default is to use all retention policies. If specified, then -database is required.
+  retention:
+  # [ -start <timestamp> ] Optional: Not compatible with -since.
+  start:
+  # [ -end <timestamp> ] Optional:  Not compatible with -since. If used without -start, all data will be backed up starting from 1970-01-01.
+  end:
+  # [ -since <timestamp> ] Optional: Use -start instead, unless needed for legacy backup support.
+  since:
+  storage:
+    provider: pv
+```
+
+```
+kubectl create -f deploy/crds/influxdata_v1alpha1_backup_cr_pv.yaml
+```
+
+You can have a look at the logs for troubleshooting if needed.
+
+```
+ kubectl logs influxdata-operator-64898d58f4-82lg8
+```
+
+you'll see something like this in logs `2019/01/26 00:33:26 backing up db=NOAA_water_database rp=autogen shard=2 to /var/lib/influxdb/backup/20190126003326/NOAA_water_database.autogen.00002.00 since 0001-01-01T00:00:00Z`
+
+
+Note: 20190126003326 this is the directory name that stored the backup. 
+
+
+#### Use backups to restore a database
+
+
+You need to specify the database name that you want to restore. If restoring from a multiple db backup, all db will be restored unless a db name is explicitly specified. 
+
+Ex : the yaml file below will restore the "testdb" database from /var/lib//backup/20190126003326. 
+
+* Please see [InfluxDB OSS Restore](https://docs.influxdata.com/influxdb/v1.7/administration/backup_and_restore/#restore).
+* Please note the `provider` is set to `pv` as shown in the below yaml.
+  
+
+```
+  apiVersion: influxdata.com/v1alpha1
+kind: Restore
+metadata:
+  name: influxdb-restore
+spec:
+  backupId: "20190126003326"
+  podname: "influxdb-0"
+  containername: "influxdb"
+  # [ -database <db_name> ] Optional:  If not specified, all databases will be restored.
+  database: testdb
+  # [ -newdb <newdb_name> ] Optional: If not specified, then the value for -db is used. 
+  restoreTo: 
+  # [ -rp <rp_name> ] Optional: Requires that -db is set. If not specified, all retention policies will be used.
+  rp:
+  # [ -newrp <newrp_name> ] Optional: Requires that -rp is set. If not specified, then the -rp value is used.
+  newRp:
+  # [ -shard <shard_ID> ] Optional: If specified, then -db and -rp are required.
+  shard:
+  storage:
+    provider: pv
+```
+
+
+
+```
+kubectl create -f deploy/crds/influxdata_v1alpha1_restore_cr_pv.yaml
+```
+
+You can have a look at the logs for troubleshooting if needed.
+
+```
+kubectl logs influxdata-operator-64898d58f4-82lg8
+
+2019/01/26 01:00:38 Restore DB: , To DB: , Backup key: 20190126003326
+2019/01/26 01:00:38 influxd restore -portable /var/lib/influxdb/backup/20190126003326
+```
+
+#### Manual Procedure for upsizing the Persistent Volume in Azure 
+First of all, please make sure AKS version is *v1.11* up as resizing PV is beta after v1.11, according to https://kubernetes.io/blog/2018/07/12/resizing-persistent-volumes-using-kubernetes/. 
+
+As https://github.com/kubernetes/kubernetes/issues/68427 states,if the PVC is already attached to a VM, resize azure disk PVC would fail, you need to delete the pod to let that azure disk unattached first before upsizing on PV can take place. 
+As the Stateful will keep the influxdb pod 's minimual size of 0, we can't simply just delete the pod. 
+Here is a workaround. 
+
+1. `kubectl edit sts influxdb` so that it uses a fake pvc name such as from `influxdb-data-pvc` to `influxdb-data-pvc-0`.
+2. Wait for `influxdb-0` in `pending` state, then `kubectl edit pvc influxdb-data-pvc` to increase PV size via pvc. 
+3. Wait for the pv is updated with the new size, then `kubectl edit sts influxdb` and revert the pvc change made in step 1. 
+4. `kubectl delete pod -l app=influxdb` will kill the pending pod and create a new influxdb pod that mounts with resized PV.
+5. `kubectl get pv,pvc` shows the both pv and pvc are updated with the new size.

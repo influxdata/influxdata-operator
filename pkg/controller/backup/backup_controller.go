@@ -133,7 +133,9 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		log.Printf("Backups stored to %s\n", s3location)
 	case "gcs":
 
-		provider, err := storage.NewGcsStorageProvider(request.Namespace, r.client, &backup.Spec.Storage.Gcs)
+		// create a new storage client factory
+		factory := &storage.StorageClientFactoryGCS{CredentialsFile: storage.CredentialsFile}
+		provider, err := storage.NewGcsStorageProvider(request.Namespace, r.client, &backup.Spec.Storage.Gcs, factory)
 
 		if err != nil {
 			log.Printf("error creating GCS storage provider: %v", err)
@@ -144,7 +146,7 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 			log.Printf("error during copy from [%s] to [%s]: %v\n", sourceFile, destFile, err)
 			return reconcile.Result{}, err
 		}
-		gcsLocation, err := storeInGCS(provider, &backup.Spec.Storage.Gcs, backupTime, destFile)
+		gcsLocation, err := provider.CopyToGCS(&backup.Spec.Storage.Gcs, backupTime, destFile)
 
 		if err != nil {
 			log.Printf("Error during GCS storage: %v\n", err)
@@ -248,32 +250,4 @@ func storeInS3(provider *storage.S3StorageProvider, backupStorage *influxdatav1a
 	}
 
 	return "s3://" + backupStorage.Bucket + "/" + storageKey, nil
-}
-
-func storeInGCS(provider *storage.GcsStorageProvider, backupStorage *influxdatav1alpha1.GcsBackupStorage, name, srcFolder string) (string, error) {
-	storageKey := backupStorage.Folder + "/" + name
-
-	localFolder := srcFolder
-	files, err := ioutil.ReadDir(localFolder)
-	if err != nil {
-		return "", err
-	}
-
-	// Loop through files in the source directory, send to GCS
-	for _, file := range files {
-		localFile := localFolder + "/" + file.Name()
-		f, err := os.Open(localFile)
-
-		if err != nil {
-			return "", err
-		}
-
-		log.Printf("Storing To Gcs: [%s] to [%s]\n", localFile, storageKey+"/"+file.Name())
-		err = provider.Store(storageKey+"/"+file.Name(), f)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return "gs://" + backupStorage.Bucket + "/" + storageKey, nil
 }
