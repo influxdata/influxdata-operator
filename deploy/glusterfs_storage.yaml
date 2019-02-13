@@ -1,0 +1,14 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: glusterfs
+provisioner: kubernetes.io/glusterfs
+parameters: 
+  resturl: http://127.0.0.1:8081 
+  restuser: admin 
+  secretName: heketi-secret 
+  secretNamespace: default 
+  gidMin: "40000" 
+  gidMax: "50000" 
+  volumeoptions: group metadata-cache, nl-cache on 
+  volumetype: replicate:3
