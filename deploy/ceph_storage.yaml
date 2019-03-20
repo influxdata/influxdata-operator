@@ -1,0 +1,17 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ceph-resize
+provisioner: kubernetes.io/rbd
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+parameters:
+  monitors: 172.30.8.202:6789,172.30.123.220:6789,172.30.175.126:6789
+  adminId: admin
+  adminSecretName: ceph-secret
+  adminSecretNamespace: rook-ceph
+  pool: kube
+  userId: kube
+  userSecretName: ceph-user-secret
+  imageFormat: "2"
+  imageFeatures: "layering"
