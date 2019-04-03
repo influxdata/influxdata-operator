@@ -178,7 +178,7 @@ data:
       advance-period = "30m0s"
     [monitor]
       store-enabled = true
-      store-database = "-internal"
+      store-database = "_internal"
       store-interval = "10s"
     [subscriber]
       enabled = true
@@ -226,7 +226,7 @@ data:
       read-buffer = 0
       typesdb = "/usr/share/collectd/types.db"
       security-level = "none"
-      auth-file = "/etc/collectd/auth-file"
+      auth-file = "/etc/collectd/auth_file"
     [[opentsdb]]
       enabled = false
       bind-address = ":4242"
