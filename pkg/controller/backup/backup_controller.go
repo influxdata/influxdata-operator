@@ -159,6 +159,24 @@ func (r *ReconcileInfluxdbBackup) Reconcile(request reconcile.Request) (reconcil
 		// back up to PV only
 	}
 
+	cmdOpts := []string{
+		"rm -r /var/lib/influxdb/backup/*/",
+	}
+
+	outputBytes, stderrBytes, err := k8s.Exec(backup.Namespace, backup.Spec.PodName, backup.Spec.ContainerName, cmdOpts, nil)
+
+	if stderrBytes != nil {
+		log.Println("Old backups delete STDERR: ", stderrBytes.String())
+	}
+
+	output := outputBytes.String()
+	if err != nil {
+		log.Printf("Error occured while running delete old backups command: %v", err)
+		log.Printf("Stdout: %v", output)
+	} else {
+		log.Printf("Delete old backups Output: %v", output)
+	}
+
 	log.Println("Done with reconcile!")
 	return reconcile.Result{}, nil
 }
