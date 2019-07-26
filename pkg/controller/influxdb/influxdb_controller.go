@@ -111,7 +111,7 @@ func (r *ReconcileInfluxdb) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 
 	log.Printf("Reconciling Influxdb Persistent Volume Claim\n")
-	// Reconcile the cluster service
+	// Reconcile the persistent volume claim
 	err = r.reconcilePVC(influxdb)
 	if err != nil {
 		return reconcile.Result{}, err
