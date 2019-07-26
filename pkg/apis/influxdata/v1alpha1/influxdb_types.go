@@ -26,6 +26,10 @@ type InfluxdbSpec struct {
 	BaseImage string `json:"baseImage"`
 	// ImagePullPolicy defines how the image is pulled.
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
+	//  Affinitu defines which nodes your pod is eligible to be scheduled on, based on labels on the node.
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// Tolerations are applied to pods, and allow the pods to schedule onto nodes with matching taints.
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 	// Pod defines the policy for pods owned by InfluxDB operator.
 	// This field cannot be updated once the CR is created.
 	Pod *PodPolicy `json:"pod,omitempty"`

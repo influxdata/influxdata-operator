@@ -321,6 +321,8 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 							},
 						},
 					},
+					Affinity:    m.Spec.Affinity,
+					Tolerations: m.Spec.Tolerations,
 				},
 			},
 		},
