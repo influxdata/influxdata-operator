@@ -12,6 +12,10 @@ import (
 type PodPolicy struct {
 	// Resources is the resource requirements for the containers.
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+	// Env defines environment variables which get passed into  pods
+	Env []corev1.EnvVar `json:"env"`
+	// EnvFrom defines envFrom's which get passed into pods
+	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
 	// PersistentVolumeClaim is the claim to describe PVC for the influxdb container
 	PersistentVolumeClaim *corev1.PersistentVolumeClaim `json:"persistentVolumeClaim,omitempty"`
 }
@@ -26,7 +30,9 @@ type InfluxdbSpec struct {
 	BaseImage string `json:"baseImage"`
 	// ImagePullPolicy defines how the image is pulled.
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
-	//  Affinitu defines which nodes your pod is eligible to be scheduled on, based on labels on the node.
+	// NodeSelector defines which node pods get scheduled.
+	NodeSelector map[string]string `json:"nodeSelector"`
+	//  Affinity defines which nodes your pod is eligible to be scheduled on, based on labels on the node.
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// Tolerations are applied to pods, and allow the pods to schedule onto nodes with matching taints.
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
