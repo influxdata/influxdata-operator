@@ -284,11 +284,14 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 					Namespace: m.Namespace,
 				},
 				Spec: corev1.PodSpec{
+					NodeSelector: m.Spec.NodeSelector,
 					Containers: []corev1.Container{{
 						Image:           m.Spec.BaseImage,
 						Name:            "influxdb",
 						ImagePullPolicy: m.Spec.ImagePullPolicy,
 						Resources:       newContainerResources(m),
+						Env:             m.Spec.Pod.Env,
+						EnvFrom:         m.Spec.Pod.EnvFrom,
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "influxdb-config",
@@ -321,6 +324,8 @@ func (r *ReconcileInfluxdb) statefulsetForInfluxdb(m *influxdatav1alpha1.Influxd
 							},
 						},
 					},
+					Affinity:    m.Spec.Affinity,
+					Tolerations: m.Spec.Tolerations,
 				},
 			},
 		},
