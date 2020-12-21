@@ -53,7 +53,7 @@ This Operator is built using the [Operator SDK](https://github.com/operator-fram
 
 ## Usage
 
-The first step is to deploy a pvc backed by a persisten volume where the InfluxDB data will be stored. Next you will deploy one file that will install the Operator, and install the manifest for InfluxDB.
+The first step is to deploy a pvc backed by a persistent volume where the InfluxDB data will be stored. Next you will deploy one file that will install the Operator, and install the manifest for InfluxDB.
 
 ### Persistent Volumes
 
@@ -68,10 +68,10 @@ If deploying on AKS clusters see [azure_storageclass.yaml](deploy/azure_storagec
 
 If deploying on Local Workstation  see [local_storage.yaml](deploy/local_storage.yaml).
 
-Please refer to the Openshift section for the storage on OCP(Openshift Contianer Platform). There are many types of storage class that OCP supports. 
+Please refer to the Openshift section for the storage on OCP (Openshift Container Platform). There are many types of storage class that OCP supports. 
 
 The storage class created by each file supports resize of the persistent volume. 
-Note: Resize is only supperted on Kubernetes 1.11 and higher. [Persistent Volume Resize](https://kubernetes.io/blog/2018/07/12/resizing-persistent-volumes-using-kubernetes/)
+Note: Resize is only supported on Kubernetes 1.11 and higher. [Persistent Volume Resize](https://kubernetes.io/blog/2018/07/12/resizing-persistent-volumes-using-kubernetes/)
 
 To create a storage class, 
 ```
