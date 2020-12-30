@@ -53,7 +53,7 @@ This Operator is built using the [Operator SDK](https://github.com/operator-fram
 
 ## Usage
 
-The first step is to deploy a pvc backed by a persisten volume where the InfluxDB data will be stored. Next you will deploy one file that will install the Operator, and install the manifest for InfluxDB.
+The first step is to deploy a pvc backed by a persistent volume where the InfluxDB data will be stored. Next you will deploy one file that will install the Operator, and install the manifest for InfluxDB.
 
 ### Persistent Volumes
 
@@ -68,10 +68,10 @@ If deploying on AKS clusters see [azure_storageclass.yaml](deploy/azure_storagec
 
 If deploying on Local Workstation  see [local_storage.yaml](deploy/local_storage.yaml).
 
-Please refer to the Openshift section for the storage on OCP(Openshift Contianer Platform). There are many types of storage class that OCP supports. 
+Please refer to the Openshift section for the storage on OCP (Openshift Container Platform). There are many types of storage class that OCP supports. 
 
 The storage class created by each file supports resize of the persistent volume. 
-Note: Resize is only supperted on Kubernetes 1.11 and higher. [Persistent Volume Resize](https://kubernetes.io/blog/2018/07/12/resizing-persistent-volumes-using-kubernetes/)
+Note: Resize is only supported on Kubernetes 1.11 and higher. [Persistent Volume Resize](https://kubernetes.io/blog/2018/07/12/resizing-persistent-volumes-using-kubernetes/)
 
 To create a storage class, 
 ```
@@ -279,7 +279,7 @@ The backup CRD stores the backed up files to a GCS bucket. You first need to cre
 
 Note : the gcp service account is `base64encoded`.
 
-There is a [helper script](scripts/create_gcs_sa.sh) that takes cares of creating a service account, granting the admin IAM role for the GCS bucket used for influxdb data, generating key in JSON, as well as outputing in a base64 encoded format.
+There is a [helper script](scripts/create_gcs_sa.sh) that takes cares of creating a service account, granting the admin IAM role for the GCS bucket used for influxdb data, generating key in JSON, as well as outputting in a base64 encoded format.
 
 ```
 apiVersion: v1
@@ -510,7 +510,7 @@ kubectl logs influxdata-operator-64898d58f4-82lg8
 First of all, please make sure AKS version is *v1.11* up as resizing PV is beta after v1.11, according to https://kubernetes.io/blog/2018/07/12/resizing-persistent-volumes-using-kubernetes/. 
 
 As https://github.com/kubernetes/kubernetes/issues/68427 states,if the PVC is already attached to a VM, resize azure disk PVC would fail, you need to delete the pod to let that azure disk unattached first before upsizing on PV can take place. 
-As the Stateful will keep the influxdb pod 's minimual size of 0, we can't simply just delete the pod. 
+As the Stateful will keep the influxdb pod's minimal size of 0, we can't simply just delete the pod. 
 Here is a workaround. 
 
 1. `kubectl edit sts influxdb` so that it uses a fake pvc name such as from `influxdb-data-pvc` to `influxdb-data-pvc-0`.
@@ -551,7 +551,7 @@ According to [OCP 3.11 release note](https://docs.openshift.com/container-platfo
 
 
 #### Cluster installation
-Please make sure you have a a valid Red Hat subscription and then follow the steps from [Installing Openshift Container Platform cluster](https://docs.openshift.com/container-platform/3.11/install/index.html).  *openshift-ansible* playbook is the key for instllation and configuration of the cluster.
+Please make sure you have a valid Red Hat subscription and then follow the steps from [Installing Openshift Container Platform cluster](https://docs.openshift.com/container-platform/3.11/install/index.html).  *openshift-ansible* playbook is the key for installation and configuration of the cluster.
 
 Here is the cluster and OCP version we are using
 ```
