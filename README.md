@@ -1,3 +1,6 @@
+This repository has been archived and the work has been paused. If/when the
+work starts again, it will continue here.
+
 Table of Contents
 =================
    * [Development](#development)
